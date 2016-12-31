@@ -1,0 +1,4 @@
+FROM scratch 
+COPY client /go/src/client/
+ENTRYPOINT [ "/go/src/client/client" ]
+
