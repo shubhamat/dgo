@@ -10,7 +10,7 @@ import (
 func main() {
   fmt.Println("Hello! from Client")
 
-  conn, err := net.Dial("tcp", "localhost:6666")
+  conn, err := net.Dial("tcp", "saminux:6666")
   if err != nil {
       log.Fatal(err)
   }
