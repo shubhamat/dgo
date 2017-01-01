@@ -1,7 +1,7 @@
 1. ABOUT
     
-    The agentcow project is an exploration in self-orgainzing load balancing.  Each participating node in the
-    cluster (herd!), called a cow,  follows the same procedure to process items off a work queue.
+    The agentcow project is an exploration in self-orgainzing load balancing.  Each participating node
+    in the cluster (herd!), called a cow,  follows the same procedure to process items off a work queue.
     All cows are equal.
 
 2. ASSUMPTIONS
@@ -25,8 +25,9 @@
                 thread_serve:   A thread that processes incoming requests for returing the queue size and
                                 handing off a work item from its queue to the requester.
                 
-                thread_forage:  A thread that will periodically pick items off other cow's work queue based on
-                                some heuristic (such as items in queue).  This will be used in future.
+                thread_forage:  A thread that will periodically pick items off other cow's
+                                work queue based on some heuristic (such as items in queue).
+                                This will be used in future.
 
     2.  herd:   A herd is a group of cows that can talk to each other and know about each other.
 
@@ -39,7 +40,8 @@
                     It consisits of the following fields:
 
                     duration:   The time in msecs it takes to complete this work.
-                                A cow processing a work_item, will hold on to it for 'duration' ms before moving on to next one.
+                                A cow processing a work_item, will hold on to it
+                                for 'duration' ms before moving on to next one.
 
                     cost:       cost is a metric to denote the resources a work needs.
                                 This will be useful in future.
@@ -48,6 +50,7 @@
 
     3. cow:         A cow contains a work_queue, it's IP address and ports and a herdmap.
 
-    4. herdmap:     A herdmap maps the IP Address of a cow in the herd to the ports it uses and it's most recent  queue size.
+    4. herdmap:     A herdmap maps the IP Address of a cow in the herd to the ports it uses
+                    and it's most recent  queue size.
 
     5. cows:        An array of IP addresses of other cows in the herd.
