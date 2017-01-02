@@ -57,7 +57,7 @@
 
     3. cow:         A cow contains a work_queue, it's IP address and ports and a herdmap.
 
-    4. herdmap:     A herdmap maps the IP Address of a cow in the herd to the ports it uses
+    4. herdwqmap:   A herdwqmap maps the IP Address of a cow in the herd to the ports it uses
                     and it's most recent  queue size.
 
     5. cows:        An array of IP addresses of other cows in the herd.

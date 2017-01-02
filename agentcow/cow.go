@@ -3,7 +3,6 @@ package main
 import (
   "fmt"
   "os"
-  "strings"
   "container/list"
   "math/rand"
   "time"
@@ -11,10 +10,11 @@ import (
   "net"
   "net/http"
   "net/rpc"
+  "flag"
 )
 
 
-type workItem struct {
+type WorkItem struct {
   duration  int
   cost      int
 }
@@ -44,13 +44,17 @@ var myip string;
 
 var cows []string;
 
+var herdwqmap  map[string]int;
+
 var wq = workQueue{}
 
-var launchSow int = 1
+var launchSow =  flag.Bool("sow",  false,  "Start sow thread")
 
 func main() {
 
-  myip = strings.Join(os.Args[1:], "")
+  flag.Parse()
+
+  myip = flag.Arg(0)
 
   if myip == "" {
     fmt.Println("You most specify IP address.  Usage:  cow <IP_Address>")
@@ -78,6 +82,8 @@ func main() {
      os.Exit(1)
    }
 
+   herdwqmap = make(map[string]int, len(cows))
+
   // Launch the eat thread
   go eat()
 
@@ -89,7 +95,7 @@ func main() {
   }
 
   // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
-  if launchSow == 1 {
+  if *launchSow {
       go sow()
   }
 
@@ -100,8 +106,29 @@ func main() {
 
 }
 
+
+func  dequeue() WorkItem {
+    work := WorkItem{}
+    wq.mutex.Lock()
+    e := wq.list.Front()
+    if e == nil {
+      wq.mutex.Unlock()
+      go forage()
+      return work
+    }
+    work = e.Value.(WorkItem)
+    wq.list.Remove(e)
+    wq.mutex.Unlock()
+    return work
+}
+
 func (t *CowRPC) GetQueueLen(_ *ArgsNotUsed, reply *int) error {
   *reply = wq.list.Len()
+  return nil
+}
+
+func (t *CowRPC) GetWorkItem(_ *ArgsNotUsed, reply *WorkItem) error {
+  *reply = dequeue()
   return nil
 }
 
@@ -109,22 +136,10 @@ func eat()  {
   fmt.Println("Launched eat thread for " + myip)
 
   for  {
-    wq.mutex.Lock()
-    e := wq.list.Front()
-    if e == nil {
-      wq.mutex.Unlock()
-      time.Sleep(time.Second)
-      continue
+    work := dequeue()
+    if work == (WorkItem{}) {
+          time.Sleep(time.Second)
     }
-    work := e.Value.(workItem)
-    wq.list.Remove(e)
-    wq.mutex.Unlock()
-
-    if work == (workItem{}) {
-       fmt.Println ("Got nil work in queue for " + myip)
-       continue
-    }
-
     //fmt.Printf("Processing work of cost:%d duration:%d for %s...\n", work.cost, work.duration, myip)
     fmt.Printf("[EAT:%s] Processing work of duration:%d\n", myip, work.duration)
     time.Sleep(time.Second * time.Duration(work.duration))
@@ -142,7 +157,7 @@ func sow() {
      time.Sleep(time.Second * time.Duration(sleep_time))
      duration := rand.Intn(maxWorkDuration)
      cost := rand.Intn(maxCost)
-     work := workItem{duration, cost}
+     work := WorkItem{duration, cost}
      fmt.Printf("[SOW:%s] Adding work item (duration = %d)\n", myip, work.duration)
      wq.mutex.Lock()
      wq.list.PushBack(work)
@@ -174,7 +189,6 @@ func wander(cowip string)  {
   fmt.Println("Launched wander thread for " + myip + ":" + cowip)
 
   for {
-
       client, err := rpc.DialHTTP("tcp",cowip + port)
       if err != nil {
           time.Sleep(time.Second * 2)
@@ -183,8 +197,39 @@ func wander(cowip string)  {
       qlen := 0
       notUsed := 0
       err = client.Call("CowRPC.GetQueueLen", &notUsed, &qlen)
+
+      if qlen != 0 {
+        herdwqmap[cowip] = qlen
+      }
+
       // Ignore error
-      fmt.Printf("[WANDER:%s]  Work queue len for %s is %d\n", myip, cowip, qlen)
+      fmt.Printf("[WANDER:%s]  Work queue len for %s is %d\n", myip, cowip, herdwqmap[cowip])
       time.Sleep(time.Second)
   }
 }
+
+func  forage() {
+    var max int  =  herdwqmap[cows[0]]
+    var maxcowip string = cows[0]
+
+    for i := 1; i < len(cows); i++ {
+       if  max < herdwqmap[cows[i]] {
+            max  = herdwqmap[cows[i]]
+            maxcowip = cows[i]
+        }
+    }
+
+    client, err := rpc.DialHTTP("tcp",maxcowip + port)
+    if err != nil {
+        return
+    }
+    work := WorkItem{}
+    notUsed := 0
+    err = client.Call("CowRPC.GetWorkItem", &notUsed, &work)
+
+    if work != (WorkItem{}) {
+        fmt.Printf("[FORAGE:%s] Added work from %s\n", herdwqmap[maxcowip])
+        wq.list.PushBack(work)
+    }
+}
+
