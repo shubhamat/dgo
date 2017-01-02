@@ -9,6 +9,8 @@ import (
   "time"
   "sync"
   "net"
+  "net/http"
+  "net/rpc"
 )
 
 
@@ -22,11 +24,13 @@ type workQueue struct {
   list    list.List
 }
 
+/* For RPC */
+type ArgsNotUsed    int
+type CowRPC         int
 
-
-const maxWorkDuration = 31
-const maxSowDuration = 11
-const maxCost = 101
+const maxWorkDuration =   31
+const maxSowDuration =    11
+const maxCost =           101
 
 const port = ":23432";
 
@@ -97,6 +101,11 @@ func main() {
 
 }
 
+func (t *CowRPC) GetQueueLen(_ *ArgsNotUsed, reply *int) error {
+  *reply = wq.list.Len()
+  return nil
+}
+
 func eat()  {
   fmt.Println("Launched eat thread for " + myip)
 
@@ -142,24 +151,17 @@ func sow() {
   }
 }
 
+
 func moo() {
-  listner, err := net.Listen("tcp", port)
+  cowrpc := new(CowRPC)
+  rpc.Register(cowrpc)
+  rpc.HandleHTTP()
+  listener, err := net.Listen("tcp", port)
   if err != nil {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(3)
   }
 
-  for {
-      conn, err := listner.Accept()
-      if err != nil {
-        fmt.Println(err)
-        continue
-      }
-      go handleWander(conn)
-  }
-}
-
-func handleWander(conn net.Conn) {
-  fmt.Printf("Cow %v wandered.\n", conn.RemoteAddr())
-  fmt.Printf("Client %v strayed.\n", conn.RemoteAddr())
+  fmt.Println("[MOO:" + myip + " Starting HTTP Server for RPC")
+  go http.Serve(listener, nil)
 }
