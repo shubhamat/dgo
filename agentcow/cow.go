@@ -5,6 +5,8 @@ import (
   "os"
   "strings"
   "container/list"
+  "math/rand"
+  "time"
 )
 
 
@@ -26,6 +28,8 @@ var allcows = []string {
 var myip string;
 
 var cows []string;
+
+var launch_sow int = 1
 
 func main() {
 
@@ -63,6 +67,29 @@ func main() {
     fmt.Println(cows[i])
   }
 
-  workQueue.PushBack(workItem{1, 1})
+  // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
+  if launch_sow == 1 {
+      go sow()
+  }
 
+  /* Wait for other threads to finish.  Need to call wait() equivalent here*/
+  for {
+    time.Sleep(time.Duration(2))
+  }
+
+}
+
+func sow() {
+  fmt.Println("Launched sow thread for " + myip)
+  for  {
+     /* Sleep for a random time */
+     sleep_time := rand.Intn(11)
+     time.Sleep(time.Second * time.Duration(sleep_time))
+     fmt.Printf("Adding work item on %s's queue after %d seconds\n", myip, sleep_time)
+     duration := rand.Intn(31)
+     cost := rand.Intn(101)
+     work := workItem{duration, cost}
+     // TBD: Lock
+     workQueue.PushBack(work)
+  }
 }
