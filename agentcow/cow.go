@@ -17,11 +17,12 @@ import (
 type WorkItem struct {
   Duration  int
   Cost      int
+  Origin    int
 }
 
 type workQueue struct {
-  mutex   sync.Mutex
-  list    list.List
+  mutex     sync.Mutex
+  list      list.List
 }
 
 /* For RPC */
@@ -29,10 +30,15 @@ type ArgsNotUsed    int
 type CowRPC         int
 
 const maxWorkDuration =   31
-const maxSowDuration =    21
+const maxSowDuration =    16
 const maxCost =           101
 
 const port = ":23432";
+
+const (
+        ORIGIN_LOCAL  = 1
+        ORIGIN_REMOTE = 2
+)
 
 var allcows = []string {
     "192.168.0.31",
@@ -111,19 +117,36 @@ func main() {
 
 
 func  dequeue() WorkItem {
-    work := WorkItem{}
     wq.mutex.Lock()
     e := wq.list.Front()
     if e == nil {
       wq.mutex.Unlock()
       go forage()
-      return work
+      return WorkItem{}
     }
-    work = e.Value.(WorkItem)
+    work := e.Value.(WorkItem)
     wq.list.Remove(e)
     wq.mutex.Unlock()
     return work
 }
+
+func  dequeueLocal() WorkItem {
+    wq.mutex.Lock()
+    e := wq.list.Front()
+    if e == nil {
+      wq.mutex.Unlock()
+      return WorkItem{}
+    }
+    work := e.Value.(WorkItem)
+    if work.Origin == ORIGIN_LOCAL {
+        wq.list.Remove(e)
+    } else {
+        work = WorkItem{}
+    }
+    wq.mutex.Unlock()
+    return work
+}
+
 
 func (t *CowRPC) GetQueueLen(_ *ArgsNotUsed, reply *int) error {
   *reply = wq.list.Len()
@@ -131,40 +154,41 @@ func (t *CowRPC) GetQueueLen(_ *ArgsNotUsed, reply *int) error {
 }
 
 func (t *CowRPC) GetWorkItem(_ *ArgsNotUsed, reply *WorkItem) error {
-  *reply = dequeue()
+  *reply = dequeueLocal()
   return nil
 }
 
 func eat()  {
-  fmt.Println("Launched eat thread for " + myip)
+  fmt.Println("[EAT:" + myip + "] Launched thread")
 
   for  {
     work := dequeue()
     if work == (WorkItem{}) {
           time.Sleep(time.Second)
-    }
-    //fmt.Printf("Processing work of Cost:%d Duration:%d for %s...\n", work.Cost, work.Duration, myip)
-    fmt.Printf("[EAT:%s] Processing work of Duration:%d\n", myip, work.Duration)
-    time.Sleep(time.Second * time.Duration(work.Duration))
+      } else {
+          //fmt.Printf("Processing work of Cost:%d Duration:%d for %s...\n", work.Cost, work.Duration, myip)
+          fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
+          time.Sleep(time.Second * time.Duration(work.Duration))
+      }
   }
 
 }
 
 func sow() {
-  fmt.Println("Launched sow thread for " + myip)
+  fmt.Println("[SOW:" + myip + "] Launched thread")
 
   for  {
      /* Sleep for a random time */
      sleep_time := rand.Intn(maxSowDuration)
-     fmt.Printf("[SOW:%s] Sleeping for %d seconds\n", myip, sleep_time)
+     //fmt.Printf("[SOW:%s] Sleeping for %d seconds\n", myip, sleep_time)
      time.Sleep(time.Second * time.Duration(sleep_time))
      Duration := rand.Intn(maxWorkDuration)
      Cost := rand.Intn(maxCost)
-     work := WorkItem{Duration, Cost}
-     fmt.Printf("[SOW:%s] Adding work item (Duration = %d)\n", myip, work.Duration)
+     work := WorkItem{Duration, Cost, ORIGIN_LOCAL}
      wq.mutex.Lock()
      wq.list.PushBack(work)
      wq.mutex.Unlock()
+     fmt.Printf("[SOW:%s qlen:%d] Added work item (Duration = %d)\n", myip, wq.list.Len(), work.Duration)
   }
 }
 
@@ -179,7 +203,7 @@ func moo() {
       os.Exit(3)
   }
 
-  fmt.Println("[MOO:" + myip + " Starting HTTP Server for RPC")
+  fmt.Println("[MOO:" + myip + "] Starting HTTP Server for RPC")
   go http.Serve(listener, nil)
 }
 
@@ -189,7 +213,7 @@ func moo() {
  * One thread for each cow in cows[]
  */
 func wander(cowip string)  {
-  fmt.Println("Launched wander thread for " + myip + ":" + cowip)
+  fmt.Println("[WANDER:" + myip + "] Launched thread for " + cowip)
 
   for {
       client, err := rpc.DialHTTP("tcp",cowip + port)
@@ -229,7 +253,7 @@ func  forage() {
 
     if work != (WorkItem{}) {
         fmt.Printf("[FORAGE:%s] Added work from %s, qlen:%d\n", myip, maxcowip, max)
+        work.Origin = ORIGIN_REMOTE
         wq.list.PushBack(work)
     }
 }
-

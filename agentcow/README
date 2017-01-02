@@ -53,6 +53,10 @@
                     cost:       cost is a metric to denote the resources a work needs.
                                 This will be useful in future.
 
+                    origin:     origin denotes whether the work item is local or came from
+                                another cow. It can be used to prevent a work item from being
+                                bounced around from one cow to another.
+
     2. work_queue:  A work_queue is queue of of work_items. Each cow has a work_queue.
 
     3. cow:         A cow contains a work_queue, it's IP address and ports and a herdmap.
