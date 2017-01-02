@@ -15,8 +15,8 @@ import (
 
 
 type WorkItem struct {
-  duration  int
-  cost      int
+  Duration  int
+  Cost      int
 }
 
 type workQueue struct {
@@ -140,9 +140,9 @@ func eat()  {
     if work == (WorkItem{}) {
           time.Sleep(time.Second)
     }
-    //fmt.Printf("Processing work of cost:%d duration:%d for %s...\n", work.cost, work.duration, myip)
-    fmt.Printf("[EAT:%s] Processing work of duration:%d\n", myip, work.duration)
-    time.Sleep(time.Second * time.Duration(work.duration))
+    //fmt.Printf("Processing work of Cost:%d Duration:%d for %s...\n", work.Cost, work.Duration, myip)
+    fmt.Printf("[EAT:%s] Processing work of Duration:%d\n", myip, work.Duration)
+    time.Sleep(time.Second * time.Duration(work.Duration))
   }
 
 }
@@ -155,10 +155,10 @@ func sow() {
      sleep_time := rand.Intn(maxSowDuration)
      fmt.Printf("[SOW:%s] Sleeping for %d seconds\n", myip, sleep_time)
      time.Sleep(time.Second * time.Duration(sleep_time))
-     duration := rand.Intn(maxWorkDuration)
-     cost := rand.Intn(maxCost)
-     work := WorkItem{duration, cost}
-     fmt.Printf("[SOW:%s] Adding work item (duration = %d)\n", myip, work.duration)
+     Duration := rand.Intn(maxWorkDuration)
+     Cost := rand.Intn(maxCost)
+     work := WorkItem{Duration, Cost}
+     fmt.Printf("[SOW:%s] Adding work item (Duration = %d)\n", myip, work.Duration)
      wq.mutex.Lock()
      wq.list.PushBack(work)
      wq.mutex.Unlock()
@@ -223,7 +223,7 @@ func  forage() {
     if err != nil {
         return
     }
-    work := WorkItem{}
+    var work WorkItem
     notUsed := 0
     err = client.Call("CowRPC.GetWorkItem", &notUsed, &work)
 
