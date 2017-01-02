@@ -1,4 +1,0 @@
-FROM scratch 
-COPY server /go/src/server/
-ENTRYPOINT [ "/go/src/server/server" ]
-
