@@ -7,6 +7,7 @@ import (
   "container/list"
   "math/rand"
   "time"
+  "sync"
 )
 
 
@@ -15,7 +16,12 @@ type workItem struct {
   cost      int
 }
 
-var workQueue list.List
+type workQueue struct {
+  mutex   sync.Mutex
+  list    list.List
+}
+
+var wq = workQueue{}
 
 const port = 23432;
 
@@ -89,7 +95,8 @@ func sow() {
      duration := rand.Intn(31)
      cost := rand.Intn(101)
      work := workItem{duration, cost}
-     // TBD: Lock
-     workQueue.PushBack(work)
+     wq.mutex.Lock()
+     wq.list.PushBack(work)
+     wq.mutex.Unlock()
   }
 }

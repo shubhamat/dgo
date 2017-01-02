@@ -4,6 +4,8 @@
     in the cluster (herd!), called a cow,  follows the same procedure to process items off a work queue.
     All cows are equal.
 
+    Shubham Mankhand <shubham.mankhand@gmail.com>
+
 2. ASSUMPTIONS
 
     1. Each cow knows and can talk to some or all of the other cows in the same herd.
@@ -33,6 +35,11 @@
 
     3.  sower:  A sower is an entity that randomly assigns works to all the cows in the herd.
                 This is what creates the "load"
+
+                A sower has the following thread of execution:
+
+                thread_sow:     A thread that adds an item to a cow's work queue every
+                                few seconds(A random numbre between [0,10]).
 
 4.  DATA STRUCTURES
 
