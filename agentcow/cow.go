@@ -82,7 +82,10 @@ func main() {
      os.Exit(1)
    }
 
-   herdwqmap = make(map[string]int, len(cows))
+  herdwqmap = make(map[string]int, len(cows))
+  for i := 0; i < len(cows); i++ {
+    herdwqmap[cows[i]] = 0
+  }
 
   // Launch the eat thread
   go eat()
