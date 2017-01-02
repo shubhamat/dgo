@@ -39,7 +39,7 @@
                 A sower has the following thread of execution:
 
                 thread_sow:     A thread that adds an item to a cow's work queue every
-                                few seconds(A random numbre between [0,10]).
+                                few seconds(A random number between [0,10]).
 
 4.  DATA STRUCTURES
 
