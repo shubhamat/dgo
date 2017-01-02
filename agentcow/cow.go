@@ -29,7 +29,7 @@ type ArgsNotUsed    int
 type CowRPC         int
 
 const maxWorkDuration =   31
-const maxSowDuration =    11
+const maxSowDuration =    21
 const maxCost =           101
 
 const port = ":23432";
@@ -200,13 +200,10 @@ func wander(cowip string)  {
       qlen := 0
       notUsed := 0
       err = client.Call("CowRPC.GetQueueLen", &notUsed, &qlen)
-
-      if qlen != 0 {
-        herdwqmap[cowip] = qlen
-      }
+      herdwqmap[cowip] = qlen
 
       // Ignore error
-      fmt.Printf("[WANDER:%s]  Work queue len for %s is %d\n", myip, cowip, herdwqmap[cowip])
+      // fmt.Printf("[WANDER:%s]  Work queue len for %s is %d\n", myip, cowip, herdwqmap[cowip])
       time.Sleep(time.Second)
   }
 }
@@ -231,7 +228,7 @@ func  forage() {
     err = client.Call("CowRPC.GetWorkItem", &notUsed, &work)
 
     if work != (WorkItem{}) {
-        fmt.Printf("[FORAGE:%s] Added work from %s\n", myip, maxcowip)
+        fmt.Printf("[FORAGE:%s] Added work from %s, qlen:%d\n", myip, maxcowip, max)
         wq.list.PushBack(work)
     }
 }
