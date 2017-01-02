@@ -24,7 +24,7 @@
                 thread_eat:     A thread that processes items off work queue. If the work queue is empty,
                                 it picks an item from the queue of a cow with maximum items.
 
-                thread_serve:   A thread that processes incoming requests for returing the queue size and
+                thread_moo:   A thread that processes incoming requests for returing the queue size and
                                 handing off a work item from its queue to the requester.
                 
                 thread_forage:  A thread that will periodically pick items off other cow's

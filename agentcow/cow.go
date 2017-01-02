@@ -8,6 +8,7 @@ import (
   "math/rand"
   "time"
   "sync"
+  "net"
 )
 
 
@@ -27,7 +28,7 @@ const maxWorkDuration = 31
 const maxSowDuration = 11
 const maxCost = 101
 
-const port = 23432;
+const port = ":23432";
 
 var allcows = []string {
     "192.168.0.31",
@@ -81,6 +82,8 @@ func main() {
 
   // Launch the eat thread
   go eat()
+
+  go moo()
 
   // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
   if launchSow == 1 {
@@ -137,4 +140,26 @@ func sow() {
      wq.list.PushBack(work)
      wq.mutex.Unlock()
   }
+}
+
+func moo() {
+  listner, err := net.Listen("tcp", port)
+  if err != nil {
+      fmt.Fprintln(os.Stderr, err)
+      os.Exit(3)
+  }
+
+  for {
+      conn, err := listner.Accept()
+      if err != nil {
+        fmt.Println(err)
+        continue
+      }
+      go handleWander(conn)
+  }
+}
+
+func handleWander(conn net.Conn) {
+  fmt.Printf("Cow %v wandered.\n", conn.RemoteAddr())
+  fmt.Printf("Client %v strayed.\n", conn.RemoteAddr())
 }
