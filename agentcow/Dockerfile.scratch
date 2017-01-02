@@ -1,0 +1,4 @@
+FROM scratch 
+COPY cow /go/src/cow/
+ENTRYPOINT [ "/go/src/cow/cow" ]
+
