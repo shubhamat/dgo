@@ -231,7 +231,7 @@ func  forage() {
     err = client.Call("CowRPC.GetWorkItem", &notUsed, &work)
 
     if work != (WorkItem{}) {
-        fmt.Printf("[FORAGE:%s] Added work from %s\n", myip, herdwqmap[maxcowip])
+        fmt.Printf("[FORAGE:%s] Added work from %s\n", myip, maxcowip)
         wq.list.PushBack(work)
     }
 }
