@@ -78,16 +78,15 @@ func main() {
      os.Exit(1)
    }
 
-
-  fmt.Println("Other cows in herd:")
-  for i := 0; i < len(cows); i++ {
-    fmt.Println(cows[i])
-  }
-
   // Launch the eat thread
   go eat()
 
   go moo()
+
+
+  for i := 0; i < len(cows); i++ {
+    go wander(cows[i])
+  }
 
   // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
   if launchSow == 1 {
@@ -164,4 +163,27 @@ func moo() {
 
   fmt.Println("[MOO:" + myip + " Starting HTTP Server for RPC")
   go http.Serve(listener, nil)
+}
+
+
+/*
+ * Wander and fetch the queue len for the given cow.
+ * One thread for each cow in cows[]
+ */
+func wander(cowip string)  {
+  fmt.Println("Launched wander thread for " + myip + ":" + cowip)
+
+  for {
+
+      client, err := rpc.DialHTTP("tcp",cowip + port)
+      if err != nil {
+          time.Sleep(time.Second * 2)
+          continue
+      }
+      qlen := 0
+      err = client.Call("CowRPC.GetQueueLen", nil, &qlen)
+      // Ignore error
+      fmt.Printf("[WANDER:%s]  Work queue len for %s is %d", myip, cowip, qlen)
+      time.Sleep(time.Second)
+  }
 }
