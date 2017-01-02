@@ -181,7 +181,8 @@ func wander(cowip string)  {
           continue
       }
       qlen := 0
-      err = client.Call("CowRPC.GetQueueLen", nil, &qlen)
+      notUsed := 0
+      err = client.Call("CowRPC.GetQueueLen", &notUsed, &qlen)
       // Ignore error
       fmt.Printf("[WANDER:%s]  Work queue len for %s is %d", myip, cowip, qlen)
       time.Sleep(time.Second)
