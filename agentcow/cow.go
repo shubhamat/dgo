@@ -127,7 +127,7 @@ func initAll() {
   fmt.Printf("Initializing cow:%s..., Looking for other cows on:%s\n", myip, broadcast)
 
   herdwqmap = make(map[string]int, len(cows))
-  
+
 /*
   cows = make([]string, len(allcows) - 1)
 
@@ -178,20 +178,24 @@ func discover() {
         time.Sleep(time.Second)
         continue
       }
+      newcowaddr := cowaddr.IP.String()
+      if newcowaddr == myip {
+          continue
+      }
 
       found := false
       for i := 0; i < len(cows); i++ {
-        if cows[i] == cowaddr.IP.String() {
+        if cows[i] == newcowaddr {
           found = true
           break;
         }
       }
 
       if !found {
-        cows = append(cows, cowaddr.IP.String())
-        fmt.Printf("[DISCOVER:%s] Adding new cow %s. Cows in herd %d\n", myip, cowaddr.IP.String(), len(cows))
-        herdwqmap[cowaddr.IP.String()] = 0
-        go wander(cowaddr.IP.String())
+        cows = append(cows, newcowaddr)
+        fmt.Printf("[DISCOVER:%s] Adding new cow %s. Cows in herd %d\n", myip, newcowaddr, len(cows))
+        herdwqmap[newcowaddr] = 0
+        go wander(newcowaddr)
       }
   }
 }
