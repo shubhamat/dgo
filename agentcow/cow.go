@@ -162,7 +162,7 @@ func discover() {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(1)
   }
-  conn, err := net.ListenUDP("udp", addr)
+  conn, err := net.DialUDP("udp", nil, addr)
   if err != nil {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(1)
