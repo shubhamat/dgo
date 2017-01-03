@@ -156,7 +156,7 @@ func initAll() {
 
 func discover() {
   fmt.Println("[DISCOVER:" + myip + "] Launched thread")
-  svc := myip + port
+  svc := broadcast + port
   addr, err := net.ResolveUDPAddr("udp4", svc)
   if err != nil {
       fmt.Fprintln(os.Stderr, err)
