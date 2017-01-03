@@ -40,12 +40,14 @@ const (
         ORIGIN_REMOTE = 2
 )
 
+/*
 var allcows = []string {
     "192.168.0.30",
     "192.168.0.31",
     "192.168.0.32",
     "192.168.0.33",
     "192.168.0.34" }
+*/
 
 var myip string
 var myipaddr *net.IPNet
@@ -67,12 +69,8 @@ func main() {
 
   go moo()
 
-
-  for i := 0; i < len(cows); i++ {
-    go wander(cows[i])
-  }
-
   go discover()
+
   go beDiscovered()
 
   // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
@@ -128,6 +126,9 @@ func initAll() {
 
   fmt.Printf("Initializing cow:%s..., Looking for other cows on:%s\n", myip, broadcast)
 
+  herdwqmap = make(map[string]int, len(cows))
+  
+/*
   cows = make([]string, len(allcows) - 1)
 
   fn := 0
@@ -151,6 +152,7 @@ func initAll() {
   for i := 0; i < len(cows); i++ {
     herdwqmap[cows[i]] = 0
   }
+*/
 
 }
 
@@ -177,7 +179,20 @@ func discover() {
         continue
       }
 
-     fmt.Println("Got ping from " + cowaddr.String())
+      found := false
+      for i := 0; i < len(cows); i++ {
+        if cows[i] == cowaddr.IP.String() {
+          found = true
+          break;
+        }
+      }
+
+      if !found {
+        cows = append(cows, cowaddr.IP.String())
+        fmt.Printf("[DISCOVER:%s] Adding new cow %s. Cows in herd %d\n", myip, cowaddr.IP.String(), len(cows))
+        herdwqmap[cowaddr.IP.String()] = 0
+        go wander(cowaddr.IP.String())
+      }
   }
 }
 
