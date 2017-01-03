@@ -156,13 +156,13 @@ func initAll() {
 
 func discover() {
   fmt.Println("[DISCOVER:" + myip + "] Launched thread")
-  svc := broadcast + port
+  svc := "0.0.0.0" + port
   addr, err := net.ResolveUDPAddr("udp4", svc)
   if err != nil {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(1)
   }
-  conn, err := net.DialUDP("udp", nil, addr)
+  conn, err := net.ListenUDP("udp", addr)
   if err != nil {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(1)
@@ -172,6 +172,7 @@ func discover() {
       var buf [64]byte
       _, cowaddr, err := conn.ReadFromUDP(buf[0:])
       if err != nil {
+        fmt.Println("DISCOVER read error")
         time.Sleep(time.Second)
         continue
       }
@@ -183,9 +184,10 @@ func discover() {
 func beDiscovered() {
   fmt.Println("[BEDISCOVERED:" + myip + ":"  + broadcast + "] Launched thread")
   for {
-      svc := broadcast + port
+      svc := "255.255.255.255" + port
       addr, err := net.ResolveUDPAddr("udp4", svc)
       if err != nil {
+        fmt.Println("BEDISCOVERED resolve error")
         time.Sleep(time.Second)
         continue
       }
@@ -199,11 +201,12 @@ func beDiscovered() {
       */
       conn, err := net.DialUDP("udp", nil, addr)
       if err != nil {
+        fmt.Println("BEDISCOVERED dial error")
         time.Sleep(time.Second)
         continue
       }
       conn.Write([]byte("cow"))
-      conn.Close()
+      //conn.Close()
       time.Sleep(time.Second)
   }
 }
