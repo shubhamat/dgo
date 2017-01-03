@@ -183,13 +183,19 @@ func discover() {
 func beDiscovered() {
   fmt.Println("[BEDISCOVERED:" + myip + ":"  + broadcast + "] Launched thread")
   for {
-      svc := myip + port
+      svc := broadcast + port
       addr, err := net.ResolveUDPAddr("udp4", svc)
       if err != nil {
         time.Sleep(time.Second)
         continue
       }
-      conn, err := net.DialUDP("udp", nil, addr)
+      svc = myip + port
+      localaddr, err := net.ResolveUDPAddr("udp4", svc)
+      if err != nil {
+        time.Sleep(time.Second)
+        continue
+      }
+      conn, err := net.DialUDP("udp", localaddr, addr)
       if err != nil {
         time.Sleep(time.Second)
         continue
