@@ -73,6 +73,7 @@ func main() {
   }
 
   go discover()
+  go beDiscovered()
 
   // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
   if *launchSow {
@@ -172,6 +173,18 @@ func discover() {
       }
 
      fmt.Println("Got ping from " + cowaddr.String())
+  }
+}
+
+func beDiscovered() {
+  fmt.Println("[BEDISCOVERED:" + myip + ":"  + broadcast + "] Launched thread")
+  for {
+      conn, err := net.Dial("udp", broadcast + port)
+      if err != nil {
+        time.Sleep(time.Second)
+      }
+      conn.Close()
+      time.Sleep(time.Second)
   }
 }
 
