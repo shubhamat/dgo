@@ -67,11 +67,12 @@ func main() {
 
   go moo()
 
-  /*
+
   for i := 0; i < len(cows); i++ {
     go wander(cows[i])
   }
-  */
+
+  go discover()
 
   // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
   if *launchSow {
@@ -153,18 +154,24 @@ func initAll() {
 }
 
 func discover() {
-  listener, err := net.Listen("udp", broadcast + port)
+  fmt.Println("[DISCOVER:" + myip + "] Launched thread")
+  svc := myip + port
+  addr, err := net.ResolveUDPAddr("udp4", svc)
+  conn, err := net.ListenUDP("udp", addr)
   if err != nil {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(1)
   }
 
   for {
-     conn, err := listener.Accept()
-     if (err != nil) {
-       continue
-     }
-     fmt.Println("Got ping from " + conn.RemoteAddr().String())
+      var buf [64]byte
+      _, cowaddr, err := conn.ReadFromUDP(buf[0:])
+      if err != nil {
+        time.Sleep(time.Second)
+        continue
+      }
+
+     fmt.Println("Got ping from " + cowaddr.String())
   }
 }
 
