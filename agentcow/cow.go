@@ -41,33 +41,90 @@ const (
 )
 
 var allcows = []string {
+    "192.168.0.30",
     "192.168.0.31",
     "192.168.0.32",
     "192.168.0.33",
     "192.168.0.34" }
 
-var myip string;
+var myip string
+var myipaddr *net.IPNet
+var broadcast string
 
-var cows []string;
-
-var herdwqmap  map[string]int;
-
+var cows []string
+var herdwqmap  map[string]int
 var wq = workQueue{}
 
-var launchSow =  flag.Bool("sow",  false,  "Start sow thread")
+var launchSow =   flag.Bool("sow",  false,  "Start sow thread")
+var iface     =   flag.String("iface", "wlan0",  "Interface used for sending data")
 
 func main() {
 
+  initAll()
+
+  // Launch the eat thread
+  go eat()
+
+  go moo()
+
+  /*
+  for i := 0; i < len(cows); i++ {
+    go wander(cows[i])
+  }
+  */
+
+  // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
+  if *launchSow {
+      go sow()
+  }
+
+    /* Wait for other threads to finish.  Need to call wait() equivalent here*/
+  for {
+    time.Sleep(time.Second)
+  }
+
+}
+
+func initAll() {
   flag.Parse()
 
-  myip = flag.Arg(0)
+  myiface, err := net.InterfaceByName(*iface)
 
-  if myip == "" {
-    fmt.Println("You most specify IP address.  Usage:  cow <IP_Address>")
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "Error in locating interface:%s\n%s\n", *iface, err)
     os.Exit(1)
   }
 
-  fmt.Printf("Initializing cow:%s ...\n", myip)
+  addresses, err := myiface.Addrs()
+  if err != nil {
+    fmt.Fprintf(os.Stderr, "Error in getting address for interface:%s\n%s\n", *iface, err)
+    os.Exit(1)
+  }
+
+  for _, addr := range addresses {
+   if ipaddr, ok := addr.(*net.IPNet); ok && !ipaddr.IP.IsLoopback() {
+     if ipaddr.IP.To4() != nil {
+       myip = ipaddr.IP.String()
+       myipaddr = ipaddr
+     }
+   }
+  }
+
+  ip := myipaddr.IP.To4()
+  mask := myipaddr.Mask
+  bcast := make(net.IP, len(ip))
+  for i := range bcast {
+    bcast[i] = ip[i] | ^mask[i]
+  }
+
+  broadcast  = fmt.Sprintf("%s", bcast)
+
+  if myip == "" {
+    fmt.Println("You most specify an interface.  Usage:  cow -iface <InterfaceName>")
+    os.Exit(1)
+  }
+
+  fmt.Printf("Initializing cow:%s..., Looking for other cows on:%s\n", myip, broadcast)
 
   cows = make([]string, len(allcows) - 1)
 
@@ -93,28 +150,23 @@ func main() {
     herdwqmap[cows[i]] = 0
   }
 
-  // Launch the eat thread
-  go eat()
-
-  go moo()
-
-
-  for i := 0; i < len(cows); i++ {
-    go wander(cows[i])
-  }
-
-  // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
-  if *launchSow {
-      go sow()
-  }
-
-    /* Wait for other threads to finish.  Need to call wait() equivalent here*/
-  for {
-    time.Sleep(time.Second)
-  }
-
 }
 
+func discover() {
+  listener, err := net.Listen("udp", broadcast + port)
+  if err != nil {
+      fmt.Fprintln(os.Stderr, err)
+      os.Exit(1)
+  }
+
+  for {
+     conn, err := listener.Accept()
+     if (err != nil) {
+       continue
+     }
+     fmt.Println("Got ping from " + conn.RemoteAddr().String())
+  }
+}
 
 func  dequeue() WorkItem {
     wq.mutex.Lock()
@@ -233,6 +285,11 @@ func wander(cowip string)  {
 }
 
 func  forage() {
+
+    if len(cows) < 1 {
+      return
+    }
+
     var max int  =  herdwqmap[cows[0]]
     var maxcowip string = cows[0]
 
