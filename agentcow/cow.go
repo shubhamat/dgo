@@ -1,3 +1,4 @@
+/* (c) 2017  Shubham Mankhand  <shubham.mankhand@gmail.com> */
 package main
 
 import (
@@ -40,15 +41,6 @@ const (
         ORIGIN_REMOTE = 2
 )
 
-/*
-var allcows = []string {
-    "192.168.0.30",
-    "192.168.0.31",
-    "192.168.0.32",
-    "192.168.0.33",
-    "192.168.0.34" }
-*/
-
 var myip string
 var myipaddr *net.IPNet
 var broadcast string
@@ -64,7 +56,6 @@ func main() {
 
   initAll()
 
-  // Launch the eat thread
   go eat()
 
   go moo()
@@ -73,12 +64,10 @@ func main() {
 
   go beDiscovered()
 
-  // Launch the sow thread. TBD:  Add a flag that controls whether this thread is launched or not
   if *launchSow {
       go sow()
   }
 
-    /* Wait for other threads to finish.  Need to call wait() equivalent here*/
   for {
     time.Sleep(time.Second)
   }
@@ -127,35 +116,11 @@ func initAll() {
   fmt.Printf("Initializing cow:%s..., Looking for other cows on:%s\n", myip, broadcast)
 
   herdwqmap = make(map[string]int, len(cows))
-
-/*
-  cows = make([]string, len(allcows) - 1)
-
-  fn := 0
-
-  for i,j := 0, 0; i < len(allcows); i++ {
-
-    if allcows[i] == myip {
-       fn = 1
-    } else if j < len(cows) {
-        cows[j] = allcows[i]
-        j++
-     }
-   }
-
-   if fn != 1 {
-     fmt.Printf("%s does not exist in the list of known cows. Enter a known IP.\n", myip)
-     os.Exit(1)
-   }
-
-  herdwqmap = make(map[string]int, len(cows))
-  for i := 0; i < len(cows); i++ {
-    herdwqmap[cows[i]] = 0
-  }
-*/
-
 }
 
+/*
+ * Discover new cows.
+ */
 func discover() {
   fmt.Println("[DISCOVER:" + myip + "] Launched thread")
   svc := "0.0.0.0" + port
@@ -200,6 +165,9 @@ func discover() {
   }
 }
 
+/*
+ * Let other cows know you exist
+ */
 func beDiscovered() {
   fmt.Println("[BEDISCOVERED:" + myip + ":"  + broadcast + "] Launched thread")
   for {
@@ -210,14 +178,7 @@ func beDiscovered() {
         time.Sleep(time.Second)
         continue
       }
-      /*
-      svc = myip + port
-      localaddr, err := net.ResolveUDPAddr("udp4", svc)
-      if err != nil {
-        time.Sleep(time.Second)
-        continue
-      }
-      */
+
       conn, err := net.DialUDP("udp", nil, addr)
       if err != nil {
         fmt.Println("BEDISCOVERED dial error")
@@ -225,7 +186,6 @@ func beDiscovered() {
         continue
       }
       conn.Write([]byte("cow"))
-      //conn.Close()
       time.Sleep(time.Second)
   }
 }
@@ -280,7 +240,6 @@ func eat()  {
     if work == (WorkItem{}) {
           time.Sleep(time.Second)
       } else {
-          //fmt.Printf("Processing work of Cost:%d Duration:%d for %s...\n", work.Cost, work.Duration, myip)
           fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
           time.Sleep(time.Second * time.Duration(work.Duration))
       }
@@ -294,7 +253,6 @@ func sow() {
   for  {
      /* Sleep for a random time */
      sleep_time := rand.Intn(maxSowDuration)
-     //fmt.Printf("[SOW:%s] Sleeping for %d seconds\n", myip, sleep_time)
      time.Sleep(time.Second * time.Duration(sleep_time))
      Duration := rand.Intn(maxWorkDuration)
      Cost := rand.Intn(maxCost)
@@ -337,17 +295,17 @@ func wander(cowip string)  {
       }
       qlen := 0
       notUsed := 0
+      /* Ignore error for now */
       err = client.Call("CowRPC.GetQueueLen", &notUsed, &qlen)
       herdwqmap[cowip] = qlen
-
-      // Ignore error
-      // fmt.Printf("[WANDER:%s]  Work queue len for %s is %d\n", myip, cowip, herdwqmap[cowip])
       time.Sleep(time.Second)
   }
 }
 
+/*
+ * Get work off another cow's queue
+ */
 func  forage() {
-
     if len(cows) < 1 {
       return
     }

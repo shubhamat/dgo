@@ -1,10 +1,14 @@
+(c) 2017  Shubham Mankhand <shubham.mankhand@gmail.com>
+
 1. ABOUT
 
-    The agentcow project is an exploration in self-orgainzing load balancing.  Each participating node
-    in the cluster (herd!), called a cow,  follows the same procedure to process items off a work queue.
+    The agentcow project is an exploration in self-orgainzing load balancing.
+    
+    Each participating node in the cluster (herd!), called a cow,  follows the
+    same procedure to process items off a work queue. 
+    
     All cows are equal.
 
-    Shubham Mankhand <shubham.mankhand@gmail.com>
 
 2. ASSUMPTIONS
 
@@ -13,8 +17,8 @@
 
 3. ACTORS
 
-    1. cow:     A cow is an entity that processes work.   It takes the work off it's work queue,
-                processes it and moves on to the next item.
+    1. cow:     A cow is an entity that processes work.   It takes the work off it's work
+                queue, processes it and moves on to the next item.
 
                 A cow has the following threads of execution:
 
