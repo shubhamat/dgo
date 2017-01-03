@@ -189,13 +189,15 @@ func beDiscovered() {
         time.Sleep(time.Second)
         continue
       }
+      /*
       svc = myip + port
       localaddr, err := net.ResolveUDPAddr("udp4", svc)
       if err != nil {
         time.Sleep(time.Second)
         continue
       }
-      conn, err := net.DialUDP("udp", localaddr, addr)
+      */
+      conn, err := net.DialUDP("udp", nil, addr)
       if err != nil {
         time.Sleep(time.Second)
         continue
