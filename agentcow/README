@@ -1,5 +1,5 @@
 1. ABOUT
-    
+
     The agentcow project is an exploration in self-orgainzing load balancing.  Each participating node
     in the cluster (herd!), called a cow,  follows the same procedure to process items off a work queue.
     All cows are equal.
@@ -15,21 +15,26 @@
 
     1. cow:     A cow is an entity that processes work.   It takes the work off it's work queue,
                 processes it and moves on to the next item.
-                
+
                 A cow has the following threads of execution:
-                
+
                 thread_wander:  A thread that periodically requests the queue size
                                 (number of work items in the work queue) of all other cows in the herd.
 
                 thread_eat:     A thread that processes items off work queue. If the work queue is empty,
                                 it picks an item from the queue of a cow with maximum items.
 
-                thread_moo:   A thread that processes incoming requests for returing the queue size and
+                thread_moo:     A thread that processes incoming requests for returing the queue size and
                                 handing off a work item from its queue to the requester.
-                
+
                 thread_forage:  A thread that will periodically pick items off other cow's
                                 work queue based on some heuristic (such as items in queue).
-                                This will be used in future.
+
+                thread_discover:  A thread that waits for a broadcast message sent from other cows.
+                                When a message from a new cow is received, the new cow is added to
+                                the herd.
+
+                thread_bediscovered: A thread that periodically sends broadcast messages.
 
     2.  herd:   A herd is a group of cows that can talk to each other and know about each other.
 
@@ -39,7 +44,7 @@
                 A sower has the following thread of execution:
 
                 thread_sow:     A thread that adds an item to a cow's work queue every
-                                few seconds(A random number between [0,10]).
+                                few seconds(A random number between [0,N]).
 
 4.  DATA STRUCTURES
 

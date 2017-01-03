@@ -193,7 +193,7 @@ func discover() {
 
       if !found {
         cows = append(cows, newcowaddr)
-        fmt.Printf("[DISCOVER:%s] Adding new cow %s. Cows in herd %d\n", myip, newcowaddr, len(cows))
+        fmt.Printf("[DISCOVER:%s] Adding new cow %s. Total cows in herd %d\n", myip, newcowaddr, 1 + len(cows))
         herdwqmap[newcowaddr] = 0
         go wander(newcowaddr)
       }
