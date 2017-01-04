@@ -293,7 +293,7 @@ func eat()  {
 }
 
 func eatFromFile(filename string) {
-  fmt.Printf("[EAT:%s] Filling work queue from file:%s\n", filename)
+  fmt.Printf("[EAT:%s] Filling work queue from file:%s\n", myip, filename)
 
   work := WorkItem{}
 
