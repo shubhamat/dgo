@@ -171,7 +171,7 @@ func discover() {
 func beDiscovered() {
   fmt.Println("[BEDISCOVERED:" + myip + ":"  + broadcast + "] Launched thread")
   for {
-      svc := "255.255.255.255" + port
+      svc := broadcast + port
       addr, err := net.ResolveUDPAddr("udp4", svc)
       if err != nil {
         fmt.Println("BEDISCOVERED resolve error")
