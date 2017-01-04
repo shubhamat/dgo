@@ -12,6 +12,7 @@ import (
   "net/http"
   "net/rpc"
   "flag"
+  "encoding/gob"
 )
 
 
@@ -35,7 +36,8 @@ const maxSowDuration  =   16
 const maxCost         =   101
 
 /* -1 implies sow thread will keep sowing */
-const defWorkItems    =   -1
+const defWorkItems        =   -1
+const defWorkItemsOutFile =   100
 
 const port = ":23432";
 
@@ -109,7 +111,14 @@ func initAll() {
   }
 
   if (*outfile != "") {
+    if *workItems == -1 {
+      *workItems = defWorkItemsOutFile
+    }
     sowToFile(*outfile)
+  }
+
+  if (*infile != "") {
+    eatFromFile(*infile)
   }
 
   /* Setup network properties */
@@ -283,29 +292,75 @@ func eat()  {
 
 }
 
-func eatFromFile(file string) {
-  fmt.Printf("[EAT:%s] Filling work queue from file:%s\n", file)
+func eatFromFile(filename string) {
+  fmt.Printf("[EAT:%s] Filling work queue from file:%s\n", filename)
+
+  work := WorkItem{}
+
+  file, err := os.Open(filename)
+  if err != nil {
+     fmt.Fprintln(os.Stderr, err)
+     os.Exit(1)
+  }
+
+  dec := gob.NewDecoder(file)
+  n := 0
+  for dec.Decode(&work) == nil {
+      wq.mutex.Lock()
+      wq.list.PushBack(work)
+      wq.mutex.Unlock()
+      n++
+      fmt.Printf("[EATFROMFILE:%s qlen:%d] Added work item %d  (Duration = %d)\n", myip, wq.list.Len(), n, work.Duration)
+  }
+
 }
+
+/* Load Generators */
 
 func sow() {
   fmt.Println("[SOW:" + myip + "] Launched thread")
-
+  n := 0
   for  {
-     /* Sleep for a random time */
-     sleep_time := rand.Intn(maxSowDuration)
-     time.Sleep(time.Second * time.Duration(sleep_time))
-     Duration := rand.Intn(maxWorkDuration)
-     Cost := rand.Intn(maxCost)
-     work := WorkItem{Duration, Cost, ORIGIN_LOCAL}
-     wq.mutex.Lock()
-     wq.list.PushBack(work)
-     wq.mutex.Unlock()
-     fmt.Printf("[SOW:%s qlen:%d] Added work item (Duration = %d)\n", myip, wq.list.Len(), work.Duration)
+      /* Sleep for a random time */
+      sleep_time := rand.Intn(maxSowDuration)
+      time.Sleep(time.Second * time.Duration(sleep_time))
+      Duration := rand.Intn(maxWorkDuration)
+      Cost := rand.Intn(maxCost)
+      work := WorkItem{Duration, Cost, ORIGIN_LOCAL}
+      wq.mutex.Lock()
+      wq.list.PushBack(work)
+      wq.mutex.Unlock()
+      fmt.Printf("[SOW:%s qlen:%d] Added work item %d  (Duration = %d)\n", myip, wq.list.Len(), n, work.Duration)
+      n++
+      if *workItems != -1  && n > *workItems {
+        fmt.Println("[SOW:" + myip + "] Exiting thread")
+        return
+      }
   }
+
 }
 
-func sowToFile(file string) {
-  fmt.Printf("[SOW] Sowing to file:%s\n", file)
+func sowToFile(filename string) {
+  fmt.Printf("[SOW] Sowing %d work items to file:%s\n", *workItems, filename)
+
+  file, err := os.Create(filename)
+  if err != nil {
+     fmt.Fprintln(os.Stderr, err)
+     os.Exit(1)
+  }
+
+  enc := gob.NewEncoder(file)
+
+  for n := 0; n < * workItems; n++ {
+      Duration := rand.Intn(maxWorkDuration)
+      Cost := rand.Intn(maxCost)
+      work := WorkItem{Duration, Cost, ORIGIN_LOCAL}
+      enc.Encode(work)
+      fmt.Printf("[SOWTOFILE:%s] Added work item %d  (Duration = %d)\n", filename, n, work.Duration)
+  }
+
+  file.Close()
+
   os.Exit(0)
 }
 
