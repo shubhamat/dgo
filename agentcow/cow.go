@@ -154,7 +154,7 @@ func initAll() {
   broadcast  = fmt.Sprintf("%s", bcast)
 
   if myip == "" {
-    fmt.Println("You most specify an interface.  Usage:  cow -iface <InterfaceName>")
+    fmt.Println("You must specify an interface.  Usage:  cow -iface <InterfaceName>")
     os.Exit(1)
   }
 
