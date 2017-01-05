@@ -229,6 +229,7 @@ func beDiscovered() {
 			continue
 		}
 		conn.Write([]byte("cow"))
+		conn.Close()
 		time.Sleep(time.Second)
 	}
 }
