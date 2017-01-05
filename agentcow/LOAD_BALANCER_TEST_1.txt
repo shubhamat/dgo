@@ -1,0 +1,22 @@
+I created a simple test to verify that load balancing does happen as more cows join the herd.  
+
+SETUP:
+4 Raspberry PI 3's  (named samnode[1-4])  running Hypriotos  and 1 HP ENVY Laptop (names saminux).  All on same WiFi network.
+
+PROCEDURE:
+
+Step 1:  Created a GOB file   by  running `./cow --sow-of=a.gob --max-work-duration=5 --work-items=100`
+    Note: 100 is the default number of work items, so --work-items flag is optional for this case.
+    
+Step  2:   Ran a cow on samnode1  : './cow --eat-if=a.go'   Since default iface is wlan0 --iface option was not give.  cow exited once the work queue got empty. Noted
+the time it took for this cow to process everything in its work queue.
+
+Step 3,4,5,6: Ran cow's on samnode[2-4] and saminux  and launched the cow on samnode1.  Took note of processing time for each of the cases.  samnode1's cow was launched
+last to ensure that all cows are in the herd before the load is made available.
+
+
+RESULTS.
+
+Run:1
+Number_of_Cows:                 1       2       3       4       5
+Processing_time_in_seconds:     301     176     126     95      78
