@@ -20,3 +20,7 @@ RESULTS.
 Run:1
 Number_of_Cows:                 1       2       3       4       5
 Processing_time_in_seconds:     301     176     126     95      78
+
+Run:2
+Number_of_Cows:                 1       2       3       4       5
+Processing_time_in_seconds:     301     175     126     97      77
