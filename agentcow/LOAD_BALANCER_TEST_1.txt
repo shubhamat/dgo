@@ -25,6 +25,6 @@ Run:2
 Number_of_Cows:                 1       2       3       4       5
 Processing_time_in_seconds:     301     175     126     97      77
 
-Run:3 (Changed the sleep time in eat thread to 100ms from 1s)
+Run:3 (Changed the sleep time in eat thread from 1s to 100ms and 0ms if there is no sower)
 Number_of_Cows:                 1       2       3       4       5
-Processing_time_in_seconds:     301     160     106
+Processing_time_in_seconds:     301     159     109     80      67

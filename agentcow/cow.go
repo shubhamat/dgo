@@ -280,18 +280,19 @@ func eat() {
 	fmt.Println("[EAT:" + myip + "] Launched thread")
 
 	startTime := time.Now()
-
+	n := 0
 	for {
 		work := dequeue()
 		if work == (WorkItem{}) {
 			/* When processing data off a file, print a report on time taken to process all items. */
 			if *infile != "" {
-				printReportAndExit(time.Since(startTime))
+				printReportAndExit(n, time.Since(startTime))
 			}
 			if !*launchSow {
 				time.Sleep(time.Millisecond * 100)
 			}
 		} else {
+			n++
 			fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
 			time.Sleep(time.Second * time.Duration(work.Duration))
 		}
@@ -323,8 +324,8 @@ func eatFromFile(filename string) {
 }
 
 /* Print Report */
-func printReportAndExit(delta time.Duration) {
-	fmt.Printf("[COW:%s] Took %d seconds to process %d items from file %s.\n", myip, int(delta.Seconds()), *workItems, *infile)
+func printReportAndExit(items int, delta time.Duration) {
+	fmt.Printf("[COW:%s] Took %d seconds to process %d items (%d local) from file %s.\n", myip, int(delta.Seconds()), *workItems, items, *infile)
 	os.Exit(0)
 }
 
