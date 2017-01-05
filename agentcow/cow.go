@@ -265,7 +265,9 @@ func dequeueLocal() WorkItem {
 }
 
 func (t *CowRPC) GetQueueLen(_ *ArgsNotUsed, reply *int) error {
+	wq.mutex.Lock()
 	*reply = wq.list.Len()
+	wq.mutex.Unlock()
 	return nil
 }
 
@@ -286,7 +288,9 @@ func eat() {
 			if *infile != "" {
 				printReportAndExit(time.Since(startTime))
 			}
-			time.Sleep(time.Millisecond * 100)
+			if !*launchSow {
+				time.Sleep(time.Millisecond * 100)
+			}
 		} else {
 			fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
 			time.Sleep(time.Second * time.Duration(work.Duration))
@@ -438,6 +442,8 @@ func forage() {
 	if work != (WorkItem{}) {
 		fmt.Printf("[FORAGE:%s] Added work from %s, qlen:%d\n", myip, maxcowip, max)
 		work.Origin = origin_remote
+		wq.mutex.Lock()
 		wq.list.PushBack(work)
+		wq.mutex.Unlock()
 	}
 }
