@@ -286,7 +286,7 @@ func eat() {
 			if *infile != "" {
 				printReportAndExit(time.Since(startTime))
 			}
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 100)
 		} else {
 			fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
 			time.Sleep(time.Second * time.Duration(work.Duration))
