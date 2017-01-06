@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -51,6 +53,8 @@ var broadcast string
 var cows []string
 var herdwqmap map[string]int
 var wq = workQueue{}
+var items int
+var startTime time.Time
 
 var launchSow = flag.Bool("sow", false, "Start sow thread")
 var iface = flag.String("iface", defIface, "Interface used for sending data")
@@ -82,6 +86,8 @@ func main() {
 }
 
 func initAll() {
+
+	startTime = time.Now()
 
 	/* Process the command line flags */
 	flag.Parse()
@@ -116,6 +122,9 @@ func initAll() {
 	if *infile != "" {
 		eatFromFile(*infile)
 	}
+
+	/* Setup signal handler:  on a ctrl+c print report and exit*/
+	go doSignals()
 
 	/* Setup network properties */
 	myiface, err := net.InterfaceByName(*iface)
@@ -208,6 +217,13 @@ func discover() {
 	}
 }
 
+func doSignals() {
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGQUIT)
+	<-sigchan
+	printReportAndExit()
+}
+
 /*
  * Let other cows know you exist
  */
@@ -280,20 +296,18 @@ func (t *CowRPC) GetWorkItem(_ *ArgsNotUsed, reply *WorkItem) error {
 func eat() {
 	fmt.Println("[EAT:" + myip + "] Launched thread")
 
-	startTime := time.Now()
-	n := 0
 	for {
 		work := dequeue()
 		if work == (WorkItem{}) {
 			/* When processing data off a file, print a report on time taken to process all items. */
 			if *infile != "" {
-				printReportAndExit(n, time.Since(startTime))
+				printReportAndExit()
 			}
 			if !*launchSow {
 				time.Sleep(time.Millisecond * 100)
 			}
 		} else {
-			n++
+			items++
 			fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
 			time.Sleep(time.Second * time.Duration(work.Duration))
 		}
@@ -325,8 +339,9 @@ func eatFromFile(filename string) {
 }
 
 /* Print Report */
-func printReportAndExit(items int, delta time.Duration) {
-	fmt.Printf("[COW:%s] Took %d seconds to process %d items (%d local) from file %s.\n", myip, int(delta.Seconds()), *workItems, items, *infile)
+func printReportAndExit() {
+	delta := time.Since(startTime)
+	fmt.Printf("\n[COW:%s] Took %d seconds to process %d items (%d local)\n", myip, int(delta.Seconds()), *workItems-wq.list.Len(), items)
 	os.Exit(0)
 }
 
