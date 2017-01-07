@@ -1,0 +1,4 @@
+FROM scratch 
+COPY hcrux /go/src/hcrux/
+ENTRYPOINT [ "/go/src/hcrux/hcrux" ]
+
