@@ -1,0 +1,4 @@
+FROM scratch 
+COPY dht /go/src/dht/
+ENTRYPOINT [ "/go/src/dht/dht" ]
+
