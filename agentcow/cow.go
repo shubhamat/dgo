@@ -53,7 +53,7 @@ var broadcast string
 var cows []string
 var herdwqmap map[string]int
 var wq = workQueue{}
-var items int
+var localItems, remoteItems int
 var startTime time.Time
 
 var launchSow = flag.Bool("sow", false, "Start sow thread")
@@ -307,7 +307,12 @@ func eat() {
 				time.Sleep(time.Millisecond * 100)
 			}
 		} else {
-			items++
+			switch work.Origin {
+			case origin_local:
+				localItems++
+			case origin_remote:
+				remoteItems++
+			}
 			fmt.Printf("[EAT:%s qlen:%d] Processing work of Duration:%d\n", myip, wq.list.Len(), work.Duration)
 			time.Sleep(time.Second * time.Duration(work.Duration))
 		}
@@ -341,7 +346,8 @@ func eatFromFile(filename string) {
 /* Print Report */
 func printReportAndExit() {
 	delta := time.Since(startTime)
-	fmt.Printf("\n[COW:%s] Took %d seconds to process %d items (%d local)\n", myip, int(delta.Seconds()), *workItems-wq.list.Len(), items)
+	fmt.Printf("\n[COW:%s] Took %d seconds to process %d local items and %d remote items\n",
+		myip, int(delta.Seconds()), localItems, remoteItems)
 	os.Exit(0)
 }
 
