@@ -76,3 +76,7 @@
                     and it's most recent  queue size.
 
     5. cows:        An array of IP addresses of other cows in the herd.
+
+# dgo/dht
+
+The dht project is an implementation of a light weight Dynamic Hash Table.
