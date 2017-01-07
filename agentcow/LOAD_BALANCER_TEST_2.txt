@@ -23,7 +23,11 @@ Step 7: Wait for cow's on samnode1 and samnode2 to exit after all the items in t
 
 RESULTS.
 
-Number_of_Cows:                         1       2       3       4       5
-samnode1_Processing_time_in_seconds:    
-samnode2_Processing_time_in_seconds:   
+L: Number of Local Items processed
+
+For 2 cows, both samnode1 and samnode2 were run.
+
+Number_of_Cows:                       	1(L)     	2(L)       		3(L)     	4(L)     	5(L)
+samnode1_Processing_time_in_seconds:    301(100)  	297(100)    	185(54)		143(41)		110(34)
+samnode2_Processing_time_in_seconds:    240(50)   	240(50)			189(41)		138(29)		116(26)
 
