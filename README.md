@@ -77,6 +77,19 @@
 
     5. cows:        An array of IP addresses of other cows in the herd.
 
+#dgo/hcrux
+
+hcrux horcruxizes a file across N cows. In simple terms, it takes a file and splits in N pieces and stores each piece  on different node.  A file can be joined only if all the nodes containing the pieces are online.  Each node stores the following
+information about each piece:
+    1. Hash of filename/content.
+    2. Sequence Number and Size of the piece stored locally. 
+    
+When a node comes up, it broadcasts a query for the file.  Any node that has a piece of the file, responds back.  Once all the pieces have been found the querying node requests the data from nodes and assembles the file together.
+
+
+    
+    
+
 # dgo/dht
 
 The dht project is an implementation of a light weight Dynamic Hash Table.
