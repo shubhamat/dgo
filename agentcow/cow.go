@@ -55,6 +55,7 @@ var herdwqmap map[string]int
 var wq = workQueue{}
 var localItems, remoteItems int
 var startTime time.Time
+var wg sync.WaitGroup
 
 var launchSow = flag.Bool("sow", false, "Start sow thread")
 var iface = flag.String("iface", defIface, "Interface used for sending data")
@@ -67,22 +68,24 @@ func main() {
 
 	initAll()
 
+	wg.Add(1)
 	go moo()
 
+	wg.Add(1)
 	go discover()
 
+	wg.Add(1)
 	go beDiscovered()
 
 	if *launchSow {
+		wg.Add(1)
 		go sow()
 	}
 
+	wg.Add(1)
 	go eat()
 
-	for {
-		time.Sleep(time.Second)
-	}
-
+	wg.Wait()
 }
 
 func initAll() {
@@ -124,6 +127,7 @@ func initAll() {
 	}
 
 	/* Setup signal handler:  on a ctrl+c print report and exit*/
+	wg.Add(1)
 	go doSignals()
 
 	/* Setup network properties */
@@ -174,6 +178,8 @@ func initAll() {
  * Discover new cows.
  */
 func discover() {
+	defer wg.Done()
+
 	fmt.Println("[DISCOVER:" + myip + "] Launched thread")
 	svc := "0.0.0.0" + port
 	addr, err := net.ResolveUDPAddr("udp4", svc)
@@ -212,12 +218,14 @@ func discover() {
 			cows = append(cows, newcowaddr)
 			fmt.Printf("[DISCOVER:%s] Adding new cow %s. Total cows in herd %d\n", myip, newcowaddr, 1+len(cows))
 			herdwqmap[newcowaddr] = 0
+			wg.Add(1)
 			go wander(newcowaddr)
 		}
 	}
 }
 
 func doSignals() {
+	defer wg.Done()
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGQUIT)
 	<-sigchan
@@ -228,6 +236,7 @@ func doSignals() {
  * Let other cows know you exist
  */
 func beDiscovered() {
+	defer wg.Done()
 	fmt.Println("[BEDISCOVERED:" + myip + ":" + broadcast + "] Launched thread")
 	for {
 		svc := broadcast + port
@@ -294,6 +303,7 @@ func (t *CowRPC) GetWorkItem(_ *ArgsNotUsed, reply *WorkItem) error {
 }
 
 func eat() {
+	defer wg.Done()
 	fmt.Println("[EAT:" + myip + "] Launched thread")
 
 	for {
@@ -354,6 +364,7 @@ func printReportAndExit() {
 /* Load Generators */
 
 func sow() {
+	defer wg.Done()
 	fmt.Println("[SOW:" + myip + "] Launched thread")
 	n := 0
 	for {
@@ -401,6 +412,7 @@ func sowToFile(filename string) {
 }
 
 func moo() {
+	defer wg.Done()
 	cowrpc := new(CowRPC)
 	rpc.Register(cowrpc)
 	rpc.HandleHTTP()
@@ -411,6 +423,7 @@ func moo() {
 	}
 
 	fmt.Println("[MOO:" + myip + "] Starting HTTP Server for RPC")
+	wg.Add(1)
 	go http.Serve(listener, nil)
 }
 
@@ -419,6 +432,7 @@ func moo() {
  * One thread for each cow in cows[]
  */
 func wander(cowip string) {
+	defer wg.Done()
 	fmt.Println("[WANDER:" + myip + "] Launched thread for " + cowip)
 
 	for {
@@ -440,6 +454,7 @@ func wander(cowip string) {
  * Get work off another cow's queue
  */
 func forage() {
+	defer wg.Done()
 	if len(cows) < 1 {
 		return
 	}
