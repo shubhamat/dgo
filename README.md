@@ -92,4 +92,4 @@ When a node comes up, it broadcasts a query for the file.  Any node that has a p
 
 # dgo/dht
 
-The dht project is an implementation of a light weight Dynamic Hash Table.
+The dht project is an implementation of a light weight Distributed Hash Table.
