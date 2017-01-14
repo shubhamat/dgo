@@ -45,6 +45,27 @@ func parseArgs() {
 		fmt.Println("filename should be provided with a --split or --join operation")
 		usage()
 	}
+
+	switch op {
+	case "split":
+		splitFile()
+	case "join":
+		joinFile()
+	case "list":
+		listNodes()
+	}
+}
+
+func splitFile() {
+	fmt.Printf("Splitting file %q...\n", fname)
+}
+
+func joinFile() {
+	fmt.Printf("Searching and joining file %q...\n", fname)
+}
+
+func listNodes() {
+	fmt.Printf("Searching for nodes...\n")
 }
 
 func usage() {
