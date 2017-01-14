@@ -13,6 +13,7 @@ var mode = flag.String("mode", "GPS", "mode to determine what determines the vic
 var dist = flag.Int("distance", 100, "distance in meters to determine how close the nodes should be for a file to be join")
 
 var op string
+var fname string
 
 func main() {
 	parseArgs()
@@ -27,7 +28,7 @@ func parseArgs() {
 		allops++
 	}
 	if *join {
-		op = "list"
+		op = "join"
 		allops++
 	}
 	if *list {
@@ -39,10 +40,15 @@ func parseArgs() {
 		usage()
 	}
 
+	fname = flag.Arg(0)
+	if op != "list" && fname == "" {
+		fmt.Println("filename should be provided with a --split or --join operation")
+		usage()
+	}
 }
 
 func usage() {
-	fmt.Println("Usage: hcrux [OPTIONS] [filename]")
+	fmt.Println("\n\nUsage: hcrux [OPTIONS] [filename]")
 	fmt.Println("OPTIONS:")
 	fmt.Printf("--split\n\tsplit the file into multiple pieces\n")
 	fmt.Printf("--join\n\tsearch and build the files if all the pieces are viccinity\n")
