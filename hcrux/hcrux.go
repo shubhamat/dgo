@@ -142,21 +142,56 @@ func splitFile() {
 	pieces := make([]piece, numnodes)
 	off := int64(0)
 	plen := fsize / int64(numnodes)
-	for i, piece := range pieces {
-		piece.start = off
-		piece.length = plen
+	for i := 0; i < len(pieces); i++ {
+		pieces[i].name = fname
+		pieces[i].contenthash = filehash
+		pieces[i].start = off
+		pieces[i].length = plen
 		if i == numnodes-1 {
-			piece.length += fsize - plen*int64(numnodes)
+			pieces[i].length += fsize - plen*int64(numnodes)
 		}
-		off += piece.length
-		piece.contenthash = filehash
-		piece.name = fname
-		fmt.Printf("piece %d: start:%d length:%d\n", i, piece.start, piece.length)
+		pieces[i].data = make([]byte, pieces[i].length)
+		file.Seek(pieces[i].start, 0)
+		_, err = io.ReadFull(file, pieces[i].data)
+		if err != nil {
+			fmt.Printf("Error reading pieces[i] %d\n")
+			os.Exit(1)
+		}
+		off += pieces[i].length
+		fmt.Printf("pieces %d: start:%d length:%d\n", i, pieces[i].start, pieces[i].length)
+	}
+
+	/* Send each piece to a node, for now save it locally */
+	for i, piece := range pieces {
+		err := sendPieceToNode(piece, nodes[i])
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
 	}
 }
 
 func joinFile() {
 	fmt.Printf("Searching and joining file %q...\n", fname)
+}
+
+func sendPieceToNode(p piece, n node) (err error) {
+	/* Send the piece p to node n*/
+
+	/* for now call the receiver directly*/
+	receivePiece(p)
+
+	return
+}
+
+/* Handled by Daemon */
+func receivePiece(p piece) {
+	/*RPC handler that receives the piece*/
+	savePiece(p)
+}
+
+func savePiece(p piece) {
+	fmt.Printf("Saving piece. hash:%s start:%d\n", p.contenthash, p.start)
 }
 
 /*
