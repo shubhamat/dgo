@@ -1,1 +1,21 @@
-HCRUX
+(c) 2017  Shubham Mankhand <shubham.mankhand@gmail.com>
+
+1. ABOUT
+
+    hcrux is a utility that splits a file into multiple pieces and stores them on different nodes.
+    To retrieve the file again, all the nodes should be online.  This would be useful as a mobile
+    app where an important document is split across multiple devices and the same document is
+    retrieved when all the devices are in the same vicinity (determined through GPS or bluetooth).
+
+
+2. ASSUMPTIONS
+
+    1. Each node has a way of communicating with other nodes. A public IP or a bluetooth address.
+
+3. ACTORS
+
+    node: A node stores the individual pieces of a file. It has an IP address or other means of
+          communicating with other nodes. A node should have a GPS or bluetooth device or wifi
+          to determine proximity.
+
+4. DATA STRUCTURES
