@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -14,10 +17,11 @@ type node struct {
 
 type piece struct {
 	name        string /* used for joining*/
-	contenthash string /* hash of the entire file */
-	start       int
-	length      int
 	mode        string
+	contenthash string /* hash of the entire file */
+	start       int64
+	length      int64
+	data        []byte
 }
 
 var daemon = flag.Bool("daemon", false, "Launch daemon")
@@ -113,8 +117,42 @@ func splitFile() {
 		os.Exit(1)
 	}
 	defer file.Close()
+
+	fstat, _ := file.Stat()
+	fsize := fstat.Size()
+	fmt.Printf("%q's size is %d bytes\n", fname, fsize)
+
 	nodes := getNodes()
-	fmt.Printf("Found %d nodes\n", len(nodes))
+	numnodes := len(nodes)
+	if numnodes == 0 {
+		fmt.Printf("No nodes found\n")
+		os.Exit(1)
+	}
+
+	fmt.Printf("Found %d nodes\n", numnodes)
+
+	fmt.Printf("Calculating hash...\n")
+	filehash, err := calculateHash(file)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("hash:%s\n", filehash)
+
+	pieces := make([]piece, numnodes)
+	off := int64(0)
+	plen := fsize / int64(numnodes)
+	for i, piece := range pieces {
+		piece.start = off
+		piece.length = plen
+		if i == numnodes-1 {
+			piece.length += fsize - plen*int64(numnodes)
+		}
+		off += piece.length
+		piece.contenthash = filehash
+		piece.name = fname
+		fmt.Printf("piece %d: start:%d length:%d\n", i, piece.start, piece.length)
+	}
 }
 
 func joinFile() {
@@ -122,7 +160,7 @@ func joinFile() {
 }
 
 /*
- * Return nodes where the pieces will be stored
+ * Return nodes where the pieces will be stored, including self
  */
 func getNodes() []node {
 	nodes := make([]node, 4)
@@ -133,8 +171,15 @@ func listNodes() {
 	fmt.Printf("Searching for nodes...\n")
 }
 
-func calculateHash() {
-	/*md5 hash of file contents*/
+/* calculate sha1 hash of file contents*/
+func calculateHash(file *os.File) (filehash string, err error) {
+	hash := sha1.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return
+	}
+	filehash = hex.EncodeToString(hash.Sum(nil))
+	return
 }
 
 func usage() {
