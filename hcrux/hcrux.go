@@ -7,8 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 )
 
 type node struct {
@@ -177,7 +179,23 @@ func splitFile() {
 }
 
 func joinFile() {
-	fmt.Printf("Searching and joining file %q...\n", fname)
+	bfname := path.Base(fname)
+	fmt.Printf("Searching and joining file %q...\n", bfname)
+	piecefiles, _ := filepath.Glob("piece*")
+	for _, piecefile := range piecefiles {
+		file, err := os.Open(piecefile)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+		dec := gob.NewDecoder(file)
+		piece := Piece{}
+		dec.Decode(&piece)
+		if piece.Name == bfname {
+			fmt.Printf("piece start:%d data.Length:%d\n", piece.Start, len(piece.Data))
+		}
+		file.Close()
+	}
 }
 
 func sendPieceToNode(p Piece, n node) (err error) {
@@ -197,7 +215,7 @@ func receivePiece(p Piece) {
 
 func savePiece(p Piece) {
 	fmt.Printf("Saving piece. name:%s start:%d\n", p.Name, p.Start)
-	file, err := os.OpenFile(piecedb, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	file, err := ioutil.TempFile("./", "piece")
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
@@ -212,7 +230,7 @@ func savePiece(p Piece) {
  * Return nodes where the pieces will be stored, including self
  */
 func getNodes() []node {
-	nodes := make([]node, 4)
+	nodes := make([]node, 2)
 	return nodes
 }
 
