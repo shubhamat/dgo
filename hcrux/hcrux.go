@@ -2,11 +2,13 @@ package main
 
 import (
 	"crypto/sha1"
+	"encoding/gob"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"path"
 )
 
 type node struct {
@@ -15,14 +17,17 @@ type node struct {
 	ip  string
 }
 
-type piece struct {
-	name        string /* used for joining*/
-	mode        string
-	contenthash string /* hash of the entire file */
-	start       int64
-	length      int64
-	data        []byte
+/*If these fields are not exported, they won't be encoded properly*/
+type Piece struct {
+	Name        string /* used for joining*/
+	Mode        string
+	Contenthash string /* hash of the entire file */
+	Start       int64
+	Length      int64
+	Data        []byte
 }
+
+const piecedb = "piecedb"
 
 var daemon = flag.Bool("daemon", false, "Launch daemon")
 var split = flag.Bool("split", false, "Split the file")
@@ -139,26 +144,26 @@ func splitFile() {
 	}
 	fmt.Printf("hash:%s\n", filehash)
 
-	pieces := make([]piece, numnodes)
+	pieces := make([]Piece, numnodes)
 	off := int64(0)
 	plen := fsize / int64(numnodes)
 	for i := 0; i < len(pieces); i++ {
-		pieces[i].name = fname
-		pieces[i].contenthash = filehash
-		pieces[i].start = off
-		pieces[i].length = plen
+		pieces[i].Name = path.Base(fname)
+		pieces[i].Contenthash = filehash
+		pieces[i].Start = off
+		pieces[i].Length = plen
 		if i == numnodes-1 {
-			pieces[i].length += fsize - plen*int64(numnodes)
+			pieces[i].Length += fsize - plen*int64(numnodes)
 		}
-		pieces[i].data = make([]byte, pieces[i].length)
-		file.Seek(pieces[i].start, 0)
-		_, err = io.ReadFull(file, pieces[i].data)
+		pieces[i].Data = make([]byte, pieces[i].Length)
+		file.Seek(pieces[i].Start, 0)
+		_, err = io.ReadFull(file, pieces[i].Data)
 		if err != nil {
 			fmt.Printf("Error reading pieces[i] %d\n")
 			os.Exit(1)
 		}
-		off += pieces[i].length
-		fmt.Printf("pieces %d: start:%d length:%d\n", i, pieces[i].start, pieces[i].length)
+		off += pieces[i].Length
+		fmt.Printf("pieces %d: start:%d data.Length:%d\n", i, pieces[i].Start, len(pieces[i].Data))
 	}
 
 	/* Send each piece to a node, for now save it locally */
@@ -175,7 +180,7 @@ func joinFile() {
 	fmt.Printf("Searching and joining file %q...\n", fname)
 }
 
-func sendPieceToNode(p piece, n node) (err error) {
+func sendPieceToNode(p Piece, n node) (err error) {
 	/* Send the piece p to node n*/
 
 	/* for now call the receiver directly*/
@@ -185,13 +190,22 @@ func sendPieceToNode(p piece, n node) (err error) {
 }
 
 /* Handled by Daemon */
-func receivePiece(p piece) {
-	/*RPC handler that receives the piece*/
+/* RPC handler that receives the piece*/
+func receivePiece(p Piece) {
 	savePiece(p)
 }
 
-func savePiece(p piece) {
-	fmt.Printf("Saving piece. hash:%s start:%d\n", p.contenthash, p.start)
+func savePiece(p Piece) {
+	fmt.Printf("Saving piece. name:%s start:%d\n", p.Name, p.Start)
+	file, err := os.OpenFile(piecedb, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	enc := gob.NewEncoder(file)
+	enc.Encode(p)
 }
 
 /*
