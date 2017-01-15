@@ -179,8 +179,25 @@ func splitFile() {
 }
 
 func joinFile() {
+
+	/*
+	 * join logic:
+	 * 1. local node (the one which issued --join) searches the local pieces to find
+	 *    the content hash for the file we wish to join. This implies that unless
+	 *    the local node does not have atleast one piece of a file, it cannot fetch
+	 *    other pieces.
+	 * 2. ask other nodes to send the pieces with matching hash
+	 *      - a remote node will only send a piece if it matches the hash and meets
+	 *      - the activation criteria: (node is at a given location and/or the time is
+	 *      - within a given range)
+	 * 3. local node orders the incoming pieces by their Start field
+	 * 4. After a timeout, it assembles the file together and calculates the hash
+	 * 5. If the hash matches it exposes(creates) the file
+	 */
+	found := false
 	bfname := path.Base(fname)
-	fmt.Printf("Searching and joining file %q...\n", bfname)
+	piece := Piece{}
+	fmt.Printf("Searching file %q's piece locally...\n", bfname)
 	piecefiles, _ := filepath.Glob("piece*")
 	for _, piecefile := range piecefiles {
 		file, err := os.Open(piecefile)
@@ -189,13 +206,58 @@ func joinFile() {
 			os.Exit(1)
 		}
 		dec := gob.NewDecoder(file)
-		piece := Piece{}
 		dec.Decode(&piece)
 		if piece.Name == bfname {
-			fmt.Printf("piece start:%d data.Length:%d\n", piece.Start, len(piece.Data))
+			found = true
+			file.Close()
+			break
 		}
 		file.Close()
 	}
+
+	if !found {
+		fmt.Printf("could not find a local piece for %q\n", fname)
+		os.Exit(0)
+	}
+	/* Request pieces from all nodes with matching hash, including self*/
+	fmt.Printf("found local piece start:%d data.Length:%d hash:%s\n",
+		piece.Start, len(piece.Data), piece.Contenthash)
+	pieces := []*Piece{}
+	/*TBD: use a channel to assemble pieces received from other nodes */
+	pieces = append(pieces, fetchRemotePieces(piece.Contenthash)...)
+	pieces = append(pieces, fetchLocalPieces(piece.Contenthash)...)
+	joinPieces(pieces)
+}
+
+func joinPieces(pieces []*Piece) {
+	for _, pp := range pieces {
+		fmt.Printf("local piece start:%d data.Length:%d hash:%s\n",
+			(*pp).Start, len((*pp).Data), (*pp).Contenthash)
+	}
+}
+
+func fetchRemotePieces(hash string) (p []*Piece) {
+	/*<<<< connect to cloud server here >>>*/
+	return
+}
+
+func fetchLocalPieces(hash string) (p []*Piece) {
+	piecefiles, _ := filepath.Glob("piece*")
+	for _, piecefile := range piecefiles {
+		piece := Piece{}
+		file, err := os.Open(piecefile)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+		dec := gob.NewDecoder(file)
+		dec.Decode(&piece)
+		if piece.Contenthash == hash {
+			p = append(p, &piece)
+		}
+		file.Close()
+	}
+	return
 }
 
 func sendPieceToNode(p Piece, n node) (err error) {
@@ -221,7 +283,6 @@ func savePiece(p Piece) {
 		os.Exit(1)
 	}
 	defer file.Close()
-
 	enc := gob.NewEncoder(file)
 	enc.Encode(p)
 }
