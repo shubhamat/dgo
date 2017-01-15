@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 )
 
 type node struct {
@@ -28,6 +29,8 @@ type Piece struct {
 	Length      int64
 	Data        []byte
 }
+
+type PiecePS []*Piece
 
 const piecedb = "piecedb"
 
@@ -230,6 +233,7 @@ func joinFile() {
 }
 
 func joinPieces(pieces []*Piece) {
+	sort.Sort(PiecePS(pieces))
 	for _, pp := range pieces {
 		fmt.Printf("local piece start:%d data.Length:%d hash:%s\n",
 			(*pp).Start, len((*pp).Data), (*pp).Contenthash)
@@ -309,6 +313,11 @@ func calculateHash(file *os.File) (filehash string, err error) {
 	filehash = hex.EncodeToString(hash.Sum(nil))
 	return
 }
+
+/* Sort interface */
+func (p PiecePS) Len() int           { return len(p) }
+func (p PiecePS) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p PiecePS) Less(i, j int) bool { return (*p[i]).Start < (*p[j]).Start }
 
 func usage() {
 	fmt.Println("\n\nUsage: hcrux [OPTIONS] [filename]")
