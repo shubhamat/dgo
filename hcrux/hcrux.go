@@ -233,10 +233,30 @@ func joinFile() {
 }
 
 func joinPieces(pieces []*Piece) {
+
+	if len(pieces) == 0 {
+		fmt.Printf("No pieces to join!\n")
+		os.Exit(1)
+	}
+
+	/*
+	 * Create the file which will contain the pieces.
+	 */
+	file, err := os.Create(path.Base(fname) + ".join")
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
 	sort.Sort(PiecePS(pieces))
+
+	/* Write piece Data to temp file */
 	for _, pp := range pieces {
+		p := *pp
 		fmt.Printf("local piece start:%d data.Length:%d hash:%s\n",
-			(*pp).Start, len((*pp).Data), (*pp).Contenthash)
+			p.Start, len(p.Data), p.Contenthash)
+		file.Write(p.Data)
 	}
 }
 
@@ -256,7 +276,7 @@ func fetchLocalPieces(hash string) (p []*Piece) {
 		}
 		dec := gob.NewDecoder(file)
 		dec.Decode(&piece)
-		if piece.Contenthash == hash {
+		if piece.Contenthash == hash && piece.Name == path.Base(fname) {
 			p = append(p, &piece)
 		}
 		file.Close()
