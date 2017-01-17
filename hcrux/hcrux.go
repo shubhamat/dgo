@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	//"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"io"
@@ -350,6 +350,9 @@ var sess *session.Session
 var qsvc *sqs.SQS
 var qname, qpath, qurl string
 
+/*Store other nodes QueueUrl(as a key) in this map*/
+var nodequeues map[string]bool
+
 /*
  * Launch the server that connects to AWS
  */
@@ -369,6 +372,9 @@ func launchServer() {
 	 * -  Delete the Queue
 	 */
 	initAWS()
+	/*DO the DO*/
+	time.Sleep(time.Second * 300)
+	cleanupAWS()
 	for {
 		fmt.Printf("Looping..\n.")
 		time.Sleep(time.Second * 10)
@@ -376,13 +382,29 @@ func launchServer() {
 }
 
 func initAWS() {
-	/* Create a temp file, this will indicate that the server has a queue created */
 	fmt.Printf("Creating aws session...\n")
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-
 	qsvc = sqs.New(sess)
+
+	/* Get list of other node queues */
+	qlistr, err := qsvc.ListQueues(&sqs.ListQueuesInput{QueueNamePrefix: aws.String("SQS")})
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
+	/* Store other node's queues */
+	for _, u := range qlistr.QueueUrls {
+		if u == nil {
+			continue
+		}
+		nodequeues[*u] = true
+		fmt.Printf("found queue:%s\n", *u)
+	}
+
+	/* Create a temp file, this will indicate that the server has a queue created */
 	file, err := ioutil.TempFile("./", "SQS")
 	if err != nil {
 		fmt.Printf("%v\n", err)
@@ -406,16 +428,15 @@ func initAWS() {
 	}
 	qurl = *r.QueueUrl
 	fmt.Println("New Queue: ", qurl)
+}
 
-	/*DO the DO*/
-	time.Sleep(time.Second * 300)
-
+func cleanupAWS() {
 	/* This goes in signal handler: Later */
 	fmt.Printf("Deleting queue...\n")
 	/*
 	 * Delete the Queue.  This will be moved to signal handler
 	 */
-	_, err = qsvc.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: &qurl})
+	_, err := qsvc.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: &qurl})
 	if err != nil {
 		fmt.Printf("%v", err)
 		os.Exit(1)
