@@ -34,13 +34,11 @@ type PiecePS []*Piece
 
 const piecedb = "piecedb"
 
-var daemon = flag.Bool("daemon", false, "Launch daemon")
 var split = flag.Bool("split", false, "Split the file")
 var join = flag.Bool("join", false, "Join the file")
 var rm = flag.Bool("rm", false, "Remove file after splitting")
 var list = flag.Bool("listnodes", false, "List nodes in the viccinity")
-var mode = flag.String("mode", "GPS", "mode to determine what determines the viccinity. GPS coords or Bluetooth connection")
-var dist = flag.Int("distance", 100, "distance in meters to determine how close the nodes should be for a file to be join")
+var numpieces = flag.Int("numpieces", 3, "Number of pieces, a file should be split into")
 var nodes = flag.String("nodes", "", "node id's of nodes where the pieces of a split file will be stored")
 
 var op string
@@ -66,12 +64,8 @@ func parseArgs() {
 		op = "list"
 		allops++
 	}
-	if *daemon {
-		op = "daemon"
-		allops++
-	}
 	if allops != 1 {
-		fmt.Println("One and only one operation among --daemon, --listnodes, --split or --join should be specified")
+		fmt.Println("One and only one operation among --listnodes, --split or --join should be specified")
 		usage()
 	}
 
@@ -107,10 +101,7 @@ func splitFile() {
 	/*
 	 * Splitting logic:
 	 * 1. Get the nodes where the pieces will be stored These nodes can be:
-	 *    a. List of nodes in the same bluetooth ad hoc network
-	 *    b. Nodes within --distance of each other
-	 *    c. Nodes specified with --nodes flag
-	 *    d. A combination of above
+	 *    a. Nodes specified with --nodes flag
 	 *
 	 * 2. Shuffle the nodes to determine an order
 	 *
@@ -132,14 +123,7 @@ func splitFile() {
 	fsize := fstat.Size()
 	fmt.Printf("%q's size is %d bytes\n", fname, fsize)
 
-	nodes := getNodes()
-	numnodes := len(nodes)
-	if numnodes == 0 {
-		fmt.Printf("No nodes found\n")
-		os.Exit(1)
-	}
-
-	fmt.Printf("Found %d nodes\n", numnodes)
+	np := *numpieces
 
 	fmt.Printf("Calculating hash...\n")
 	filehash, err := calculateHash(file)
@@ -149,16 +133,17 @@ func splitFile() {
 	}
 	fmt.Printf("hash:%s\n", filehash)
 
-	pieces := make([]Piece, numnodes)
+	pieces := make([]Piece, np)
 	off := int64(0)
-	plen := fsize / int64(numnodes)
+	/* TBD: Make sure plen does not exceed 64k */
+	plen := fsize / int64(np)
 	for i := 0; i < len(pieces); i++ {
 		pieces[i].Name = path.Base(fname)
 		pieces[i].Contenthash = filehash
 		pieces[i].Start = off
 		pieces[i].Length = plen
-		if i == numnodes-1 {
-			pieces[i].Length += fsize - plen*int64(numnodes)
+		if i == np-1 {
+			pieces[i].Length += fsize - plen*int64(np)
 		}
 		pieces[i].Data = make([]byte, pieces[i].Length)
 		file.Seek(pieces[i].Start, 0)
@@ -172,6 +157,7 @@ func splitFile() {
 	}
 
 	/* Send each piece to a node, for now save it locally */
+	nodes := getNodes()
 	for i, piece := range pieces {
 		err := sendPieceToNode(piece, nodes[i])
 		if err != nil {
