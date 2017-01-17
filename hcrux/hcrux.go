@@ -12,10 +12,12 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
-	"time"
+	"sync"
+	"syscall"
 )
 
 type node struct {
@@ -353,11 +355,16 @@ var qname, qpath, qurl string
 /*Store other nodes QueueUrl(as a key) in this map*/
 var nodequeues map[string]bool
 
+var wg sync.WaitGroup
+
 /*
  * Launch the server that connects to AWS
  */
 func launchServer() {
 	fmt.Printf("Launching hcrux aws server...\n")
+
+	wg.Add(1)
+	go doSignals()
 
 	/*
 	 * TO DO
@@ -373,12 +380,7 @@ func launchServer() {
 	 */
 	initAWS()
 	/*DO the DO*/
-	time.Sleep(time.Second * 300)
-	cleanupAWS()
-	for {
-		fmt.Printf("Looping..\n.")
-		time.Sleep(time.Second * 10)
-	}
+	wg.Wait()
 }
 
 func initAWS() {
@@ -431,7 +433,7 @@ func initAWS() {
 }
 
 func cleanupAWS() {
-	/* This goes in signal handler: Later */
+	/* This gets call from signal handler */
 	fmt.Printf("Deleting queue...\n")
 	/*
 	 * Delete the Queue.  This will be moved to signal handler
@@ -444,4 +446,12 @@ func cleanupAWS() {
 	}
 	os.Remove(qpath)
 	fmt.Printf("queue removed\n.")
+}
+
+func doSignals() {
+	defer wg.Done()
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGQUIT)
+	<-sigchan
+	cleanupAWS()
 }
