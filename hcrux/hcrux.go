@@ -384,6 +384,7 @@ func launchServer() {
 }
 
 func initAWS() {
+	nodequeues = make(map[string]bool)
 	fmt.Printf("Creating aws session...\n")
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
