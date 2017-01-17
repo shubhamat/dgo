@@ -6,12 +6,16 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	//"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"time"
 )
 
 type node struct {
@@ -34,6 +38,7 @@ type PiecePS []*Piece
 
 const piecedb = "piecedb"
 
+var server = flag.Bool("server", false, "Launch the server")
 var split = flag.Bool("split", false, "Split the file")
 var join = flag.Bool("join", false, "Join the file")
 var rm = flag.Bool("rm", false, "Remove file after splitting")
@@ -64,8 +69,12 @@ func parseArgs() {
 		op = "list"
 		allops++
 	}
+	if *server {
+		op = "server"
+		allops++
+	}
 	if allops != 1 {
-		fmt.Println("One and only one operation among --listnodes, --split or --join should be specified")
+		fmt.Println("One and only one operation among --server, --listnodes, --split or --join should be specified")
 		usage()
 	}
 
@@ -81,8 +90,8 @@ func parseArgs() {
 	}
 
 	switch op {
-	case "daemon":
-		daemonize()
+	case "server":
+		launchServer()
 	case "split":
 		splitFile()
 	case "join":
@@ -90,10 +99,6 @@ func parseArgs() {
 	case "list":
 		listNodes()
 	}
-}
-
-func daemonize() {
-	fmt.Printf("Launching hcrux daemon...\n")
 }
 
 func splitFile() {
@@ -328,7 +333,7 @@ func (p PiecePS) Less(i, j int) bool { return (*p[i]).Start < (*p[j]).Start }
 func usage() {
 	fmt.Println("\n\nUsage: hcrux [OPTIONS] [filename]")
 	fmt.Println("OPTIONS:")
-	fmt.Printf("--daemon\n\tLaunch the hcrux daemon. Each node should have a daemon running.\n")
+	fmt.Printf("--server\n\tLaunch the hcrux  aws server. Each node should have this server running.\n")
 	fmt.Printf("--split\n\tsplit the file into multiple pieces\n")
 	fmt.Printf("--join\n\tsearch and build the files if all the pieces are viccinity\n")
 	fmt.Printf("--rm\n\tRemove file after splitting\n")
@@ -337,4 +342,85 @@ func usage() {
 	fmt.Printf("--listnodes\n\tlist nodes in the proximity as determined by --mode and/or --distance\n")
 	fmt.Printf("--nodes=nodeid1[,nodeid2..]\n\tnode id's of nodes where the pieces of a split file will be stored\n")
 	os.Exit(1)
+}
+
+/* THIS SECTION WILL BE MOVED TO A SEPARATE FILE */
+/*********************  AWS STUFF  *************************************/
+var sess *session.Session
+var qsvc *sqs.SQS
+var qname, qpath, qurl string
+
+/*
+ * Launch the server that connects to AWS
+ */
+func launchServer() {
+	fmt.Printf("Launching hcrux aws server...\n")
+
+	/*
+	 * TO DO
+	 * -  Subscribe to notifications on a preknown Topic: ControlTopic
+	 * -  Create a temp SQS Queue
+	 * -  fetch a list of queues and store all other queues
+	 * -  Push a notification on ControlTopic, indicating the queue name
+	 *    This will let others know that this node is up.
+	 * -  Other nodes can then request pieces by sending a request on this queue.
+	 * -  On exit, send notification on ControlTopic that this queue is no longer
+	 *    available
+	 * -  Delete the Queue
+	 */
+	initAWS()
+	for {
+		fmt.Printf("Looping..\n.")
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func initAWS() {
+	/* Create a temp file, this will indicate that the server has a queue created */
+	fmt.Printf("Creating aws session...\n")
+	sess = session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+
+	qsvc = sqs.New(sess)
+	file, err := ioutil.TempFile("./", "SQS")
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	qpath = file.Name()
+	qname = path.Base(file.Name())
+	file.Close()
+	/*
+	 *
+	 * FIX ME:  There is no guarantee the queue name is not already taken.
+	 * The CreateQueue API returns an error only if the Attributes are
+	 * different.
+	 */
+	fmt.Printf("Creating queue...\n")
+	r, err := qsvc.CreateQueue(&sqs.CreateQueueInput{QueueName: &qname})
+	if err != nil {
+		fmt.Printf("%v", err)
+		os.Exit(1)
+		return
+	}
+	qurl = *r.QueueUrl
+	fmt.Println("New Queue: ", qurl)
+
+	/*DO the DO*/
+	time.Sleep(time.Second * 300)
+
+	/* This goes in signal handler: Later */
+	fmt.Printf("Deleting queue...\n")
+	/*
+	 * Delete the Queue.  This will be moved to signal handler
+	 */
+	_, err = qsvc.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: &qurl})
+	if err != nil {
+		fmt.Printf("%v", err)
+		os.Exit(1)
+		return
+	}
+	os.Remove(qpath)
+	fmt.Printf("queue removed\n.")
 }
