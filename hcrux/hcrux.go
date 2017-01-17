@@ -368,15 +368,12 @@ func launchServer() {
 
 	/*
 	 * TO DO
-	 * -  Subscribe to notifications on a preknown Topic: ControlTopic
-	 * -  Create a temp SQS Queue
-	 * -  fetch a list of queues and store all other queues
-	 * -  Push a notification on ControlTopic, indicating the queue name
+	 * -  Subscribe queue to notifications on a preknown Topic: SNSHCRUXSQS
+	 * -  Push a notification on SNSHCRUXSQS, indicating the queue name
 	 *    This will let others know that this node is up.
 	 * -  Other nodes can then request pieces by sending a request on this queue.
 	 * -  On exit, send notification on ControlTopic that this queue is no longer
 	 *    available
-	 * -  Delete the Queue
 	 */
 	initAWS()
 	/*DO the DO*/
