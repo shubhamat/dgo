@@ -352,8 +352,8 @@ var sess *session.Session
 var qsvc *sqs.SQS
 var qname, qpath, qurl string
 
-/*Store other nodes QueueUrl(as a key) in this map*/
-var nodequeues map[string]bool
+/* Store other nodes QueueUrl(as a key) and map it to queue's ARN */
+var nodequeues map[string]string
 
 var wg sync.WaitGroup
 
@@ -381,7 +381,7 @@ func launchServer() {
 }
 
 func initAWS() {
-	nodequeues = make(map[string]bool)
+	nodequeues = make(map[string]string)
 	fmt.Printf("Creating aws session...\n")
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
@@ -400,7 +400,7 @@ func initAWS() {
 		if u == nil {
 			continue
 		}
-		nodequeues[*u] = true
+		nodequeues[*u] = "ARN_OF_THIS_QUEUE"
 		fmt.Printf("found queue:%s\n", *u)
 	}
 
