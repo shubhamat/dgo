@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"io"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -348,9 +350,14 @@ func usage() {
 
 /* THIS SECTION WILL BE MOVED TO A SEPARATE FILE */
 /*********************  AWS STUFF  *************************************/
+
+const topicname = "SNSHCRUXSQS"
+
 var sess *session.Session
 var qsvc *sqs.SQS
+var nsvc *sns.SNS
 var qname, qpath, qurl, qarn string
+var tarn string
 
 /* Store other nodes QueueUrl(as a key) and map it to queue's ARN */
 var nodequeues map[string]string
@@ -381,11 +388,39 @@ func launchServer() {
 }
 
 func initAWS() {
-	nodequeues = make(map[string]string)
 	fmt.Printf("Creating aws session...\n")
 	sess = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}))
+	initNotifications()
+	initQueues()
+}
+
+func initNotifications() {
+	nsvc = sns.New(sess)
+	/* We assume our topic is in the first 100, hence NextToken is not set */
+	nlistr, err := nsvc.ListTopics(&sns.ListTopicsInput{})
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+	/* Get the ARN of the Topic by scanning the list*/
+	for _, topic := range nlistr.Topics {
+		if strings.HasSuffix(*topic.TopicArn, topicname) {
+			tarn = *topic.TopicArn
+			break
+		}
+	}
+
+	if tarn == "" {
+		fmt.Printf("Error: Cannot find control topic\n")
+		os.Exit(1)
+	}
+	fmt.Printf("topic arn: %s\n", tarn)
+}
+
+func initQueues() {
+	nodequeues = make(map[string]string)
 	qsvc = sqs.New(sess)
 
 	/* Get list of other node queues */
@@ -439,9 +474,20 @@ func initAWS() {
 	}
 	qarn = *arnr.Attributes["QueueArn"]
 	fmt.Printf("New Queue url:%s arn:%s\n", qurl, qarn)
+
+	subscribeToTopic()
+}
+
+func subscribeToTopic() {
+	/* Set permissions on the Queue to receive notifications */
 }
 
 func cleanupAWS() {
+	cleanupNotifications()
+	cleanupQueues()
+}
+
+func cleanupQueues() {
 	/* This gets call from signal handler */
 	fmt.Printf("Deleting queue...\n")
 	/*
@@ -455,6 +501,10 @@ func cleanupAWS() {
 	}
 	os.Remove(qpath)
 	fmt.Printf("queue removed\n.")
+}
+
+func cleanupNotifications() {
+
 }
 
 func doSignals() {

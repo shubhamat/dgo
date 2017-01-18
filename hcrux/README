@@ -6,7 +6,7 @@
     To retrieve the file again, all the nodes should be online.  This would be useful as a mobile
     app where an important document is split across multiple devices and the same document is
     retrieved when each device is at a specified location and/or active during a given time window.
-
+    The main principle behind enabling a piece is to use the GPS data/time as an encryption key.
 
 2. ASSUMPTIONS
 
