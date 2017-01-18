@@ -499,12 +499,38 @@ func subscribeToTopic() {
 		QueueUrl:      aws.String(qurl),
 	}
 
-	permr, err := qsvc.AddPermission(params)
+	/* TBD: Check if we should instead call SetAttribute API, is this needed? */
+	_, err := qsvc.AddPermission(params)
 	if err != nil {
 		fmt.Printf("%v\n", err)
-		cleanupQueues()
+		cleanupAWS()
 		os.Exit(1)
 	}
+
+	params2 := &sns.SubscribeInput{
+		Protocol: aws.String("sqs"),
+		TopicArn: aws.String(tarn),
+		Endpoint: aws.String(qarn),
+	}
+
+	_, err = nsvc.Subscribe(params2)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		cleanupAWS()
+		os.Exit(1)
+	}
+	/* Send a message indicating this nodes is up */
+	params3 := &sns.PublishInput{
+		Message:  aws.String(qname + "is up"),
+		TopicArn: &tarn,
+	}
+
+	pubr, err := nsvc.Publish(params3)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+	fmt.Println(pubr)
+	/* TBD:  Confirm subscription, register message handler */
 }
 
 func cleanupAWS() {
