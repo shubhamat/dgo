@@ -354,6 +354,7 @@ func usage() {
 const topicname = "SNSHCRUXSQS"
 
 var sess *session.Session
+var accountid string
 var qsvc *sqs.SQS
 var nsvc *sns.SNS
 var qname, qpath, qurl, qarn string
@@ -466,7 +467,12 @@ func initQueues() {
 		return
 	}
 	qurl = *r.QueueUrl
-	params := &sqs.GetQueueAttributesInput{QueueUrl: &qurl, AttributeNames: []*string{aws.String("QueueArn")}}
+	params := &sqs.GetQueueAttributesInput{
+		QueueUrl: &qurl,
+		AttributeNames: []*string{
+			aws.String("QueueArn"),
+		},
+	}
 	arnr, err := qsvc.GetQueueAttributes(params)
 	if err != nil {
 		fmt.Printf("%v\n", err)
@@ -479,7 +485,26 @@ func initQueues() {
 }
 
 func subscribeToTopic() {
+
+	/* Extract Account ID from queue arn */
+
+	accountid = strings.Split(qarn, ":")[4]
+	fmt.Printf("Account ID:%s\n", accountid)
+
 	/* Set permissions on the Queue to receive notifications */
+	params := &sqs.AddPermissionInput{
+		AWSAccountIds: []*string{aws.String(accountid)},
+		Actions:       []*string{aws.String("SendMessage")},
+		Label:         aws.String(qname),
+		QueueUrl:      aws.String(qurl),
+	}
+
+	permr, err := qsvc.AddPermission(params)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		cleanupQueues()
+		os.Exit(1)
+	}
 }
 
 func cleanupAWS() {
