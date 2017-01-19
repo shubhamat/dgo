@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type node struct {
@@ -384,8 +385,48 @@ func launchServer() {
 	 *    available
 	 */
 	initAWS()
-	/*DO the DO*/
+
+	/* Start the receiver */
+	wg.Add(1)
+	go receiveQueueMessages()
+
 	wg.Wait()
+}
+
+func receiveQueueMessages() {
+	defer wg.Done()
+	params := &sqs.ReceiveMessageInput{
+		QueueUrl:            &qurl,
+		MaxNumberOfMessages: aws.Int64(1),
+	}
+
+	for {
+		/* Ignore the error(for now) */
+		rcvr, err := qsvc.ReceiveMessage(params)
+		if err != nil {
+			continue
+		}
+
+		if len(rcvr.Messages) != 0 {
+			processMessage(rcvr.Messages[0])
+			params2 := &sqs.DeleteMessageInput{
+				QueueUrl:      &qurl,
+				ReceiptHandle: rcvr.Messages[0].ReceiptHandle,
+			}
+
+			_, err = qsvc.DeleteMessage(params2)
+			if err != nil {
+				fmt.Printf("%v\n", err)
+			}
+		}
+		time.Sleep(time.Second)
+	}
+
+}
+
+func processMessage(msg *sqs.Message) {
+	body := *msg.Body
+	fmt.Printf("Received Message of Type: %s\n", body)
 }
 
 func initAWS() {
@@ -395,6 +436,7 @@ func initAWS() {
 	}))
 	initNotifications()
 	initQueues()
+	notifyNodeUp()
 }
 
 func initNotifications() {
@@ -487,7 +529,6 @@ func initQueues() {
 func subscribeToTopic() {
 
 	/* Extract Account ID from queue arn */
-
 	accountid = strings.Split(qarn, ":")[4]
 	fmt.Printf("Account ID:%s\n", accountid)
 
@@ -507,7 +548,7 @@ func subscribeToTopic() {
 		os.Exit(1)
 	}
 
-	setPolicy()
+	setQueueAttributes()
 
 	params2 := &sns.SubscribeInput{
 		Protocol: aws.String("sqs"),
@@ -523,25 +564,12 @@ func subscribeToTopic() {
 	}
 
 	qsubarn = *subr.SubscriptionArn
-
-	/* Send a message indicating this nodes is up */
-	params3 := &sns.PublishInput{
-		Message:  aws.String(qname + "is up"),
-		TopicArn: &tarn,
-	}
-
-	pubr, err := nsvc.Publish(params3)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	}
-	fmt.Println(pubr)
-	/* TBD:  Confirm subscription, register message handler */
 }
 
-func setPolicy() {
+func setQueueAttributes() {
 	policy := `{
     "Version":"2012-10-17",
-    "Id":"MyQueuePolicy",
+    "Id":"SNS-To-SQS-Policy",
     "Statement" :[
     {
       "Sid":"Allow-SNS-SendMessage",
@@ -559,10 +587,12 @@ func setPolicy() {
   }`
 	fmt.Printf("Setting policy:\n%s\n", policy)
 
+	/* Set Policy and Long Polling */
 	params := &sqs.SetQueueAttributesInput{
 		QueueUrl: &qurl,
 		Attributes: map[string]*string{
-			"Policy": &policy,
+			"Policy":                        &policy,
+			"ReceiveMessageWaitTimeSeconds": aws.String("20"),
 		},
 	}
 
@@ -575,7 +605,23 @@ func setPolicy() {
 	}
 }
 
+/* Send a message indicating this node is up */
+func notifyNodeUp() {
+	fmt.Printf("Sending NODE_UP...\n")
+	params := &sns.PublishInput{
+		Subject:  aws.String("NODE_UP"),
+		Message:  &qname,
+		TopicArn: &tarn,
+	}
+
+	_, err := nsvc.Publish(params)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+}
+
 func cleanupAWS() {
+	notifyNodeDown()
 	cleanupNotifications()
 	cleanupQueues()
 }
@@ -602,6 +648,21 @@ func cleanupQueues() {
 
 func cleanupNotifications() {
 
+}
+
+/* Send a message indicating this node is down */
+func notifyNodeDown() {
+	fmt.Printf("Sending NODE_DOWN...\n")
+	params := &sns.PublishInput{
+		Subject:  aws.String("NODE_DOWN"),
+		Message:  &qname,
+		TopicArn: &tarn,
+	}
+	/* Probably no point sending this since queue will be deleted in a jiffy */
+	_, err := nsvc.Publish(params)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
 }
 
 func doSignals() {
