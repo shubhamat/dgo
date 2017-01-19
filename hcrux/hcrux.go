@@ -357,7 +357,7 @@ var sess *session.Session
 var accountid string
 var qsvc *sqs.SQS
 var nsvc *sns.SNS
-var qname, qpath, qurl, qarn string
+var qname, qpath, qurl, qarn, qsubarn string
 var tarn string
 
 /* Store other nodes QueueUrl(as a key) and map it to queue's ARN */
@@ -513,12 +513,15 @@ func subscribeToTopic() {
 		Endpoint: aws.String(qarn),
 	}
 
-	_, err = nsvc.Subscribe(params2)
+	subr, err := nsvc.Subscribe(params2)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		cleanupAWS()
 		os.Exit(1)
 	}
+
+	qsubarn = *subr.SubscriptionArn
+
 	/* Send a message indicating this nodes is up */
 	params3 := &sns.PublishInput{
 		Message:  aws.String(qname + "is up"),
@@ -541,14 +544,18 @@ func cleanupAWS() {
 func cleanupQueues() {
 	/* This gets call from signal handler */
 	fmt.Printf("Deleting queue...\n")
+	/* UnSubscribe*/
+	params := &sns.UnsubscribeInput{SubscriptionArn: &qsubarn}
+	_, err := nsvc.Unsubscribe(params)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
 	/*
 	 * Delete the Queue.  This will be moved to signal handler
 	 */
-	_, err := qsvc.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: &qurl})
+	_, err = qsvc.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: &qurl})
 	if err != nil {
 		fmt.Printf("%v", err)
-		os.Exit(1)
-		return
 	}
 	os.Remove(qpath)
 	fmt.Printf("queue removed\n.")
