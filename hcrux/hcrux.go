@@ -507,6 +507,8 @@ func subscribeToTopic() {
 		os.Exit(1)
 	}
 
+	setPolicy()
+
 	params2 := &sns.SubscribeInput{
 		Protocol: aws.String("sqs"),
 		TopicArn: aws.String(tarn),
@@ -534,6 +536,43 @@ func subscribeToTopic() {
 	}
 	fmt.Println(pubr)
 	/* TBD:  Confirm subscription, register message handler */
+}
+
+func setPolicy() {
+	policy := `{
+    "Version":"2012-10-17",
+    "Id":"MyQueuePolicy",
+    "Statement" :[
+    {
+      "Sid":"Allow-SNS-SendMessage",
+      "Effect":"Allow",
+      "Principal" :"*",
+      "Action":["sqs:SendMessage"],
+      "Resource": "` + qarn + `",
+      "Condition" :{
+        "ArnEquals" :{
+          "aws:SourceArn":"` + tarn + `"
+        }
+      }
+    }
+    ]
+  }`
+	fmt.Printf("Setting policy:\n%s\n", policy)
+
+	params := &sqs.SetQueueAttributesInput{
+		QueueUrl: &qurl,
+		Attributes: map[string]*string{
+			"Policy": &policy,
+		},
+	}
+
+	_, err := qsvc.SetQueueAttributes(params)
+
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		cleanupAWS()
+		os.Exit(1)
+	}
 }
 
 func cleanupAWS() {
