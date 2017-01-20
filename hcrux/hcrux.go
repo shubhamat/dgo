@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
@@ -351,6 +352,10 @@ func usage() {
 
 /* THIS SECTION WILL BE MOVED TO A SEPARATE FILE */
 /*********************  AWS STUFF  *************************************/
+type MessageBody struct {
+	Subject string
+	Message string
+}
 
 const topicname = "SNSHCRUXSQS"
 
@@ -425,8 +430,13 @@ func receiveQueueMessages() {
 }
 
 func processMessage(msg *sqs.Message) {
-	body := *msg.Body
-	fmt.Printf("Received Message of Type: %s\n", body)
+	var body MessageBody
+	err := json.Unmarshal([]byte(*msg.Body), &body)
+	if err == nil {
+		fmt.Printf("Received Message of Type: %s\n", body)
+	} else {
+		fmt.Printf("%v\n", err)
+	}
 }
 
 func initAWS() {
