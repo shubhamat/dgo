@@ -432,11 +432,38 @@ func receiveQueueMessages() {
 func processMessage(msg *sqs.Message) {
 	var body MessageBody
 	err := json.Unmarshal([]byte(*msg.Body), &body)
-	if err == nil {
-		fmt.Printf("Received Message of Type: %s\n", body)
-	} else {
+	if err != nil {
 		fmt.Printf("%v\n", err)
+		return
 	}
+
+	switch body.Subject {
+	case "NODE_UP":
+		processNODE_UP(body.Message)
+	case "NODE_DOWN":
+		processNODE_DOWN(body.Message)
+	default:
+		fmt.Printf("Unknown message received\n")
+	}
+}
+
+func processNODE_UP(msg string) {
+	nodeqname := msg
+
+	if nodeqname == qname {
+		return
+	}
+	fmt.Printf("Found new node %s\n", nodeqname)
+	addNodeQueues(nodeqname)
+}
+
+func processNODE_DOWN(msg string) {
+	nodeqname := msg
+
+	if nodeqname == qname {
+		return
+	}
+	fmt.Printf("Node %s is gone!\n", nodeqname)
 }
 
 func initAWS() {
@@ -476,25 +503,7 @@ func initQueues() {
 	nodequeues = make(map[string]string)
 	qsvc = sqs.New(sess)
 
-	/* Get list of other node queues */
-	qlistr, err := qsvc.ListQueues(&sqs.ListQueuesInput{QueueNamePrefix: aws.String("SQS")})
-	if err != nil {
-		fmt.Printf("%v\n", err)
-		os.Exit(1)
-	}
-
-	/* Store other node's queues */
-	for _, u := range qlistr.QueueUrls {
-		if u == nil {
-			continue
-		}
-		params := &sqs.GetQueueAttributesInput{QueueUrl: u, AttributeNames: []*string{aws.String("QueueArn")}}
-		arnr, err := qsvc.GetQueueAttributes(params)
-		if err == nil {
-			nodequeues[*u] = *arnr.Attributes["QueueArn"]
-			fmt.Printf("found queue url:%s arn:%s\n", *u, nodequeues[*u])
-		}
-	}
+	addNodeQueues("SQS")
 
 	/* Create a temp file, this will indicate that the server has a queue created */
 	file, err := ioutil.TempFile("./", "SQS")
@@ -534,6 +543,28 @@ func initQueues() {
 	fmt.Printf("New Queue url:%s arn:%s\n", qurl, qarn)
 
 	subscribeToTopic()
+}
+
+func addNodeQueues(nameprefix string) {
+	/* Get list of other node queues */
+	qlistr, err := qsvc.ListQueues(&sqs.ListQueuesInput{QueueNamePrefix: &nameprefix})
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
+	}
+
+	/* Store other node's queues */
+	for _, u := range qlistr.QueueUrls {
+		if u == nil {
+			continue
+		}
+		params := &sqs.GetQueueAttributesInput{QueueUrl: u, AttributeNames: []*string{aws.String("QueueArn")}}
+		arnr, err := qsvc.GetQueueAttributes(params)
+		if err == nil {
+			nodequeues[*u] = *arnr.Attributes["QueueArn"]
+			fmt.Printf("found queue url:%s arn:%s\n", *u, nodequeues[*u])
+		}
+	}
 }
 
 func subscribeToTopic() {
