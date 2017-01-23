@@ -576,10 +576,10 @@ func addNodeQueues(qnameprefix string) {
 		params := &sqs.GetQueueAttributesInput{QueueUrl: u, AttributeNames: []*string{aws.String("QueueArn")}}
 		arnr, err := qsvc.GetQueueAttributes(params)
 		if err == nil {
-			fmt.Printf("found queue url:%s arn:%s\n", nq.url, nq.arn)
 			nq.url = *u
 			nq.arn = *arnr.Attributes["QueueArn"]
 			nodequeues[*u] = nq
+			fmt.Printf("found queue url:%s arn:%s\n", nq.url, nq.arn)
 		}
 	}
 }
@@ -731,8 +731,9 @@ func notifyNodeDown() {
 
 /* Send a PING to a newly added node */
 func sendPING(queueurl string) {
+  fmt.Printf("Sending ping to %s\n", queueurl)
 	params := &sqs.SendMessageInput{
-		MessageBody: aws.String("PING"),
+		MessageBody: aws.String("ping"),
 		QueueUrl:    &queueurl,
 	}
 
