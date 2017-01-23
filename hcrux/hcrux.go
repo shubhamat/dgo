@@ -463,6 +463,7 @@ func processNODE_DOWN(msg string) {
 	if nodeqname == qname {
 		return
 	}
+	delNodeQueues(nodeqname)
 	fmt.Printf("Node %s is gone!\n", nodeqname)
 }
 
@@ -545,9 +546,9 @@ func initQueues() {
 	subscribeToTopic()
 }
 
-func addNodeQueues(nameprefix string) {
+func addNodeQueues(qnameprefix string) {
 	/* Get list of other node queues */
-	qlistr, err := qsvc.ListQueues(&sqs.ListQueuesInput{QueueNamePrefix: &nameprefix})
+	qlistr, err := qsvc.ListQueues(&sqs.ListQueuesInput{QueueNamePrefix: &qnameprefix})
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		os.Exit(1)
@@ -565,6 +566,11 @@ func addNodeQueues(nameprefix string) {
 			fmt.Printf("found queue url:%s arn:%s\n", *u, nodequeues[*u])
 		}
 	}
+}
+
+func delNodeQueues(queuename string) {
+	fmt.Printf("removing queue name:%s arn:%s\n", queuename, nodequeues[queuename])
+	delete(nodequeues, queuename)
 }
 
 func subscribeToTopic() {
@@ -665,6 +671,7 @@ func cleanupAWS() {
 	notifyNodeDown()
 	cleanupNotifications()
 	cleanupQueues()
+	os.Exit(0)
 }
 
 func cleanupQueues() {
