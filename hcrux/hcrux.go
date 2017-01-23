@@ -24,12 +24,6 @@ import (
 	"time"
 )
 
-type node struct {
-	id  string
-	gps string
-	ip  string
-}
-
 /*If these fields are not exported, they won't be encoded properly*/
 type Piece struct {
 	Name        string /* used for joining*/
@@ -311,6 +305,10 @@ func savePiece(p Piece) {
 /*
  * Return nodes where the pieces will be stored, including self
  */
+type node struct {
+	dummy int
+}
+
 func getNodes() []node {
 	nodes := make([]node, 2)
 	return nodes
@@ -352,6 +350,11 @@ func usage() {
 
 /* THIS SECTION WILL BE MOVED TO A SEPARATE FILE */
 /*********************  AWS STUFF  *************************************/
+type nodequeue struct {
+	url string
+	arn string
+}
+
 type MessageBody struct {
 	Subject string
 	Message string
@@ -366,8 +369,8 @@ var nsvc *sns.SNS
 var qname, qpath, qurl, qarn, qsubarn string
 var tarn string
 
-/* Store other nodes QueueUrl(as a key) and map it to queue's ARN */
-var nodequeues map[string]string
+/* Store other nodes Queue Name(as a key) and map it to nodequeue struct */
+var nodequeues map[string]nodequeue
 
 var wg sync.WaitGroup
 
@@ -439,32 +442,42 @@ func processMessage(msg *sqs.Message) {
 
 	switch body.Subject {
 	case "NODE_UP":
-		processNODE_UP(body.Message)
+		process_NODE_UP(body.Message)
 	case "NODE_DOWN":
-		processNODE_DOWN(body.Message)
+		process_NODE_DOWN(body.Message)
+	case "PING":
+		process_PING(body.Message)
 	default:
 		fmt.Printf("Unknown message received\n")
 	}
 }
 
-func processNODE_UP(msg string) {
-	nodeqname := msg
+func process_NODE_UP(msg string) {
+	nodequrl := msg
 
-	if nodeqname == qname {
+	if nodequrl == qurl {
 		return
 	}
-	fmt.Printf("Found new node %s\n", nodeqname)
-	addNodeQueues(nodeqname)
+	fmt.Printf("Found new node %s\n", nodequrl)
+	/* Fetch list of all new queues */
+	addNodeQueues("SQS")
+
+	/* Send PING to the newly added queue */
+	go sendPING(nodequrl)
 }
 
-func processNODE_DOWN(msg string) {
-	nodeqname := msg
+func process_NODE_DOWN(msg string) {
+	nodequrl := msg
 
-	if nodeqname == qname {
+	if nodequrl == qurl {
 		return
 	}
-	delNodeQueues(nodeqname)
-	fmt.Printf("Node %s is gone!\n", nodeqname)
+	delNodeQueues(nodequrl)
+	fmt.Printf("Node %s is gone!\n", nodequrl)
+}
+
+func process_PING(msg string) {
+	fmt.Printf("PING %s\n", msg)
 }
 
 func initAWS() {
@@ -501,7 +514,7 @@ func initNotifications() {
 }
 
 func initQueues() {
-	nodequeues = make(map[string]string)
+	nodequeues = make(map[string]nodequeue)
 	qsvc = sqs.New(sess)
 
 	addNodeQueues("SQS")
@@ -559,18 +572,21 @@ func addNodeQueues(qnameprefix string) {
 		if u == nil {
 			continue
 		}
+		nq := nodequeue{}
 		params := &sqs.GetQueueAttributesInput{QueueUrl: u, AttributeNames: []*string{aws.String("QueueArn")}}
 		arnr, err := qsvc.GetQueueAttributes(params)
 		if err == nil {
-			nodequeues[*u] = *arnr.Attributes["QueueArn"]
-			fmt.Printf("found queue url:%s arn:%s\n", *u, nodequeues[*u])
+			fmt.Printf("found queue url:%s arn:%s\n", nq.url, nq.arn)
+			nq.url = *u
+			nq.arn = *arnr.Attributes["QueueArn"]
+			nodequeues[*u] = nq
 		}
 	}
 }
 
-func delNodeQueues(queuename string) {
-	fmt.Printf("removing queue name:%s arn:%s\n", queuename, nodequeues[queuename])
-	delete(nodequeues, queuename)
+func delNodeQueues(queueurl string) {
+	fmt.Printf("removing queue url:%s\n", queueurl)
+	delete(nodequeues, queueurl)
 }
 
 func subscribeToTopic() {
@@ -657,7 +673,7 @@ func notifyNodeUp() {
 	fmt.Printf("Sending NODE_UP...\n")
 	params := &sns.PublishInput{
 		Subject:  aws.String("NODE_UP"),
-		Message:  &qname,
+		Message:  &qurl,
 		TopicArn: &tarn,
 	}
 
@@ -703,11 +719,24 @@ func notifyNodeDown() {
 	fmt.Printf("Sending NODE_DOWN...\n")
 	params := &sns.PublishInput{
 		Subject:  aws.String("NODE_DOWN"),
-		Message:  &qname,
+		Message:  &qurl,
 		TopicArn: &tarn,
 	}
 	/* Probably no point sending this since queue will be deleted in a jiffy */
 	_, err := nsvc.Publish(params)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	}
+}
+
+/* Send a PING to a newly added node */
+func sendPING(queueurl string) {
+	params := &sqs.SendMessageInput{
+		MessageBody: aws.String("PING"),
+		QueueUrl:    &queueurl,
+	}
+
+	_, err := qsvc.SendMessage(params)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	}
