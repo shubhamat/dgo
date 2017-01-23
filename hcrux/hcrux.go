@@ -436,7 +436,7 @@ func processMessage(msg *sqs.Message) {
 	var body MessageBody
 	err := json.Unmarshal([]byte(*msg.Body), &body)
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Printf("Error in parsing message:%v\n", err)
 		return
 	}
 
@@ -731,9 +731,17 @@ func notifyNodeDown() {
 
 /* Send a PING to a newly added node */
 func sendPING(queueurl string) {
-  fmt.Printf("Sending ping to %s\n", queueurl)
+	fmt.Printf("Sending ping to %s\n", queueurl)
+	body := MessageBody{
+		Subject: "PING",
+		Message: qurl,
+	}
+
+	/* Marshal it so that it is of the same format as sent by SNS */
+	bodyjson, _ := json.Marshal(body)
+	bodystr := string(bodyjson)
 	params := &sqs.SendMessageInput{
-		MessageBody: aws.String("ping"),
+		MessageBody: &bodystr,
 		QueueUrl:    &queueurl,
 	}
 
